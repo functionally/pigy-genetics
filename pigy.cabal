@@ -11,9 +11,9 @@ category          : Network
 build-type        : Simple
 extra-source-files: ReadMe.md
 
-executable mantis-pigy
+executable pigy
   main-is         : Main.hs
-  other-modules   : Mantis.Pigy
+  other-modules   : Pigy.Image
   build-depends   : base >= 4.14 && < 4.15
                   , aeson
                   , aeson-pretty
@@ -25,11 +25,13 @@ executable mantis-pigy
                   , cryptonite
                   , extra
                   , filepath
+                  , JuicyPixels
                   , mantis
                   , memory
                   , mtl
                   , optparse-applicative
                   , ouroboros-network
+                  , Rasterific
                   , text
                   , transformers
                   , transformers-except
