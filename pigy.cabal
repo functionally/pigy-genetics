@@ -1,0 +1,39 @@
+cabal-version: >= 1.10
+
+name              : pigy
+description       : This tool provides several script-oriented utilities for the Cardano blockchain. In particular, it posts metadata or mints/burns tokens. It can also generate scripts, compute script addresses, compute the fingerprint of a token, and download scripts.
+version           : 0.1.0.0
+license           : MIT
+license-file      : LICENSE
+author            : Brian W Bush
+maintainer        : code@functionally.io
+category          : Network
+build-type        : Simple
+extra-source-files: ReadMe.md
+
+executable mantis-pigy
+  main-is         : Main.hs
+  other-modules   : Mantis.Pigy
+  build-depends   : base >= 4.14 && < 4.15
+                  , aeson
+                  , aeson-pretty
+                  , base16-bytestring
+                  , bech32
+                  , bytestring
+                  , cardano-api
+                  , containers
+                  , cryptonite
+                  , extra
+                  , filepath
+                  , mantis
+                  , memory
+                  , mtl
+                  , optparse-applicative
+                  , ouroboros-network
+                  , text
+                  , transformers
+                  , transformers-except
+                  , unordered-containers
+  hs-source-dirs  : app
+  default-language: Haskell2010
+  ghc-options     : -Wall
