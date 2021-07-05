@@ -32,23 +32,36 @@ test =
         <*> randomRM (0x40, 0xB0) g
         <*> randomRM (0x80, 0xFF) g
         <*> pure 0xFF
+    eyeColor  <-
+      PixelRGBA8
+        <$> randomRM (0x00, 0x9F) g
+        <*> randomRM (0x00, 0x9F) g
+        <*> randomRM (0x00, 0x9F) g
+        <*> pure 0xFF
+    pupilColor  <-
+      PixelRGBA8
+        <$> randomRM (0x60, 0xFF) g
+        <*> randomRM (0x60, 0xFF) g
+        <*> randomRM (0x60, 0xFF) g
+        <*> pure 0xFF
+    noseColor  <-
+      PixelRGBA8
+        <$> randomRM (0x00, 0xFF) g
+        <*> randomRM (0x00, 0xFF) g
+        <*> randomRM (0x00, 0xFF) g
+        <*> pure 0xFF
     writePng "yourimage.png"
       $ pigyImage
         color
+        (uniformTexture eyeColor  )
+        (uniformTexture pupilColor)
+        (uniformTexture noseColor )
         aspect
         (headx, heady)
         (eyex , eyey )
         (nosex, nosey)
         (earx , eary )
         torso
-
-
-white :: Texture PixelRGBA8
-white = uniformTexture $ PixelRGBA8 0xFF 0xFF 0xFF 0xFF
-
-
-black :: Texture PixelRGBA8
-black = uniformTexture $ PixelRGBA8 0x00 0x00 0x00 0xFF
 
 
 width :: Float
@@ -94,6 +107,9 @@ blend (PixelRGBA8 r0 g0 b0 _) (PixelRGBA8 r1 g1 b1 _) =
 
 
 pigyImage :: PixelRGBA8
+          -> Texture PixelRGBA8
+          -> Texture PixelRGBA8
+          -> Texture PixelRGBA8
           -> Float
           -> (Float, Float)
           -> (Float, Float)
@@ -101,7 +117,7 @@ pigyImage :: PixelRGBA8
           -> (Float, Float)
           -> Float
           -> Image PixelRGBA8
-pigyImage color aspect headScale eyeScale noseScale earScale bodyScale =
+pigyImage color eyeColor pupilColor noseColor aspect headScale eyeScale noseScale earScale bodyScale =
   renderDrawing (round width) (round height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
     . withAspect aspect (width / 2, height / 2)
     $ do
@@ -115,10 +131,10 @@ pigyImage color aspect headScale eyeScale noseScale earScale bodyScale =
       withScale headScale (width / 2, 150)
         $ do
           drawHead pink3 pink4
-          drawEyes eyeScale black white
+          drawEyes eyeScale eyeColor pupilColor
           drawEars earScale pink2 pink1
           withScale noseScale (width / 2, 125)
-            $ drawNose pink5 pink4 pink3 black
+            $ drawNose pink5 pink4 pink3 noseColor
 
 
 drawBody :: Float
