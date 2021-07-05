@@ -8,7 +8,7 @@ module Pigy.Image (
 
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
-import Data.Binary (Binary(..), encode)
+import Data.Binary (Binary(..), decode, encode)
 import Data.Colour.RGBSpace.HSL (hsl, hslView)
 import Data.Colour.SRGB (RGB(..))
 import Data.Word (Word8)
@@ -27,10 +27,11 @@ test :: IO ()
 test =
   do
     g <- newIOGenM =<< getStdGen
-    genotype <- uniformM g
+    genotype <- uniformM g :: IO Genotype
     let
       chromosome = encode genotype
-      phenotype = toPhenotype genotype
+      genotype' = decode chromosome
+      phenotype = toPhenotype genotype'
       tag = init . tail . show . Base58.encodeBase58 Base58.bitcoinAlphabet $ LBS.toStrict chromosome
     writePng ("pigy-" ++ tag ++ ".png")
       $ pigyImage phenotype
@@ -79,7 +80,7 @@ instance Binary Genotype where
       put $ quantize (0.75, 1.00) eyex   (0.75, 1.00) eyey
       put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
       put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
-      put $ quantize (0   , 360 ) skinh  (0   , 360 ) eyeh   
+      put $ quantize (270 , 390 ) skinh  (0   , 360 ) eyeh   
       put $ quantize (0.80, 1.00) eyes   (0.00, 0.50) eyel   
       put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
       put $ quantize (0.50, 1.00) pupill (0   , 360 ) noseh  
@@ -101,7 +102,7 @@ instance Binary Genotype where
       (eyex  , eyey  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (skinh , eyeh  ) <- unquantize (0.35, 0.65) (0   , 360 ) <$> get 
+      (skinh , eyeh  ) <- unquantize (270 , 390 ) (0   , 360 ) <$> get 
       (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
       (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
       (pupill, noseh ) <- unquantize (0.50, 1.00) (0   , 360 ) <$> get 
