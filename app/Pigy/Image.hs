@@ -9,7 +9,7 @@ module Pigy.Image (
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
 import Data.Binary (Binary(..), encode)
-import Data.Colour.RGBSpace.HSL (hsl)
+import Data.Colour.RGBSpace.HSL (hsl, hslView)
 import Data.Colour.SRGB (RGB(..))
 import Data.Word (Word8)
 import Graphics.Rasterific (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
@@ -51,8 +51,6 @@ data Genotype =
   , eary   :: Float
   , torso  :: Float
   , skinh  :: Float
-  , skins  :: Float
-  , skinl  :: Float
   , eyeh   :: Float
   , eyes   :: Float
   , eyel   :: Float
@@ -81,8 +79,7 @@ instance Binary Genotype where
       put $ quantize (0.75, 1.00) eyex   (0.75, 1.00) eyey
       put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
       put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
-      put $ quantize (0   , 360 ) skinh  (0.80, 1.00) skins 
-      put $ quantize (0.35, 0.65) skinl  (0   , 360 ) eyeh   
+      put $ quantize (0   , 360 ) skinh  (0   , 360 ) eyeh   
       put $ quantize (0.80, 1.00) eyes   (0.00, 0.50) eyel   
       put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
       put $ quantize (0.50, 1.00) pupill (0   , 360 ) noseh  
@@ -104,8 +101,7 @@ instance Binary Genotype where
       (eyex  , eyey  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (skinh , skins ) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
-      (skinl , eyeh  ) <- unquantize (0.35, 0.65) (0   , 360 ) <$> get 
+      (skinh , eyeh  ) <- unquantize (0.35, 0.65) (0   , 360 ) <$> get 
       (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
       (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
       (pupill, noseh ) <- unquantize (0.50, 1.00) (0   , 360 ) <$> get 
@@ -126,8 +122,6 @@ instance Uniform Genotype where
       eary   <- uniformRM (0.75, 1.00) g
       torso  <- uniformRM (0.75, 1.25) g
       skinh  <- uniformRM (270 , 390 ) g
-      skins  <- uniformRM (0.80, 1.00) g
-      skinl  <- uniformRM (0.35, 0.65) g
       eyeh   <- uniformRM (0   , 360 ) g
       eyes   <- uniformRM (0.80, 1.00) g
       eyel   <- uniformRM (0.00, 0.50) g
@@ -143,7 +137,7 @@ instance Uniform Genotype where
 data Phenotype =
   Phenotype
   {
-    skinColor      :: PixelRGBA8
+    skinHue        :: Float
   , eyeColor       :: PixelRGBA8
   , pupilColor     :: PixelRGBA8
   , noseColor      :: PixelRGBA8
@@ -167,7 +161,7 @@ toPhenotype Genotype{..} =
         q x = round $ 255 * x
       in
         PixelRGBA8 (q channelRed) (q channelGreen) (q channelBlue) 0xFF
-    skinColor  = hsl2rgb skinh skins skinl
+    skinHue    = skinh
     eyeColor   = hsl2rgb eyeh  eyes  eyel
     pupilColor = hsl2rgb pupilh pupils pupill
     noseColor  = hsl2rgb noseh  noses  nosel
@@ -212,15 +206,20 @@ withScale (sx, sy) (cx, cy) =
     <> translate (V2 (- cx) (- cy))
 
 
-blend :: PixelRGBA8
+blend :: Float
       -> PixelRGBA8
       -> PixelRGBA8
-blend (PixelRGBA8 r0 g0 b0 _) (PixelRGBA8 r1 g1 b1 _) =
-  PixelRGBA8
-    (div r0 2 + div r1 2)
-    (div g0 2 + div g1 2)
-    (div b0 2 + div b1 2)
-    0xFF
+blend h0 (PixelRGBA8 r1 g1 b1 _) =
+  let
+    (h1, s1, l1) = hslView $ RGB (fromIntegral r1 / 255) (fromIntegral g1 / 255) (fromIntegral b1 / 255)
+    RGB{..} = hsl ((h0 + h1) / 2) s1 l1
+    q x = round $ 255 * x
+  in
+    PixelRGBA8
+      (q channelRed  )
+      (q channelGreen)
+      (q channelBlue )
+      0xFF
 
 
 pigyImage :: Phenotype
@@ -230,11 +229,11 @@ pigyImage Phenotype{..} =
     . withAspect aspect (width / 2, height / 2)
     $ do
       let
-        pink1 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
-        pink2 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
-        pink3 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
-        pink4 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
-        pink5 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
+        pink1 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
+        pink2 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
+        pink3 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
+        pink4 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
+        pink5 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
       drawBody bodyScale pink1 pink2 pink1
       withScale headScale (width / 2, 150)
         $ do
