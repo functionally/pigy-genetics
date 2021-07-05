@@ -26,8 +26,15 @@ test =
     earx   <- randomRM (0.75, 1.00) g
     eary   <- randomRM (0.75, 1.00) g
     torso  <- randomRM (0.75, 1.25) g
+    color  <-
+      PixelRGBA8
+        <$> randomRM (0x80, 0xFF) g
+        <*> randomRM (0x40, 0xB0) g
+        <*> randomRM (0x80, 0xFF) g
+        <*> pure 0xFF
     writePng "yourimage.png"
       $ pigyImage
+        color
         aspect
         (headx, heady)
         (eyex , eyey )
@@ -75,23 +82,35 @@ withScale (sx, sy) (cx, cy) =
     <> translate (V2 (- cx) (- cy))
 
 
-pigyImage :: Float
+blend :: PixelRGBA8
+      -> PixelRGBA8
+      -> PixelRGBA8
+blend (PixelRGBA8 r0 g0 b0 _) (PixelRGBA8 r1 g1 b1 _) =
+  PixelRGBA8
+    (div r0 2 + div r1 2)
+    (div g0 2 + div g1 2)
+    (div b0 2 + div b1 2)
+    0xFF
+
+
+pigyImage :: PixelRGBA8
+          -> Float
           -> (Float, Float)
           -> (Float, Float)
           -> (Float, Float)
           -> (Float, Float)
           -> Float
           -> Image PixelRGBA8
-pigyImage aspect headScale eyeScale noseScale earScale bodyScale =
+pigyImage color aspect headScale eyeScale noseScale earScale bodyScale =
   renderDrawing (round width) (round height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
     . withAspect aspect (width / 2, height / 2)
     $ do
       let
-        pink1 = uniformTexture $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
-        pink2 = uniformTexture $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
-        pink3 = uniformTexture $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
-        pink4 = uniformTexture $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
-        pink5 = uniformTexture $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
+        pink1 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
+        pink2 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
+        pink3 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
+        pink4 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
+        pink5 = uniformTexture . blend color $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
       drawBody bodyScale pink1 pink2 pink1
       withScale headScale (width / 2, 150)
         $ do
