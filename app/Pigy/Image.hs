@@ -4,16 +4,21 @@
 
 
 module Pigy.Image (
-  Genotype(..)
+  Chromosome
+, fromChromosome
+, toChromosome
+, Genotype(..)
 , Phenotype(..)
 , toPhenotype
 , toImage
+, writeImage
 , crossover
 , test
 ) where
 
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Binary (Binary(..), decode, encode)
 import Data.Colour.RGBSpace.HSL (hsl, hslView)
 import Data.Colour.SRGB (RGB(..))
@@ -25,8 +30,9 @@ import System.Random (Uniform, getStdGen)
 import System.Random.Internal (uniformM, uniformRM)
 import System.Random.Stateful (StatefulGen, newIOGenM, uniformListM)
 
-import qualified Data.ByteString.Lazy   as LBS
-import qualified Data.ByteString.Base58 as Base58
+import qualified Data.ByteString        as BS     (pack, unpack)
+import qualified Data.ByteString.Lazy   as LBS    (fromStrict, toStrict)
+import qualified Data.ByteString.Base58 as Base58 (bitcoinAlphabet, decodeBase58, encodeBase58)
 
 
 test :: IO ()
@@ -44,13 +50,19 @@ testCreate g =
   do
     genotype <- uniformM g :: IO Genotype
     let
-      chromosome = encode genotype
-      genotype' = decode chromosome
+      chromosome = toChromosome genotype
+      Just genotype' = fromChromosome chromosome
       phenotype = toPhenotype genotype'
-      tag = init . tail . show . Base58.encodeBase58 Base58.bitcoinAlphabet $ LBS.toStrict chromosome
-    writePng ("pigy-" ++ tag ++ ".png")
-      $ toImage phenotype
-    putStrLn tag
+      Just genotype'' = fromChromosome $ toChromosome genotype'
+    writeImage ("pigy-" ++ chromosome ++ ".png") phenotype
+    putStrLn ""
+    putStrLn $ "Chromosome: " ++ chromosome
+    putStrLn ""
+    putStrLn $ "Before encoding: " ++ show genotype
+    putStrLn ""
+    putStrLn $ "After encoding: " ++ show genotype'
+    putStrLn ""
+    putStrLn $ "Encoding okay: " ++ show (genotype' == genotype'')
 
 
 testCrossover :: StatefulGen g IO
@@ -60,59 +72,41 @@ testCrossover g =
   do
     parent  <- uniformM g
     parent' <- uniformM g
+    offspring <- crossover g parent parent'
     putStrLn ""
     putStrLn $ "Parent 1: " ++ show parent
     putStrLn ""
     putStrLn $ "Parent 2: " ++ show parent'
-    offspring <- crossover g parent parent'
     putStrLn ""
     putStrLn $ "Offsping: " ++ show offspring
-    writePng "pigy-parent-1.png"
-      . toImage
+    writeImage "pigy-parent-1.png"
       $ toPhenotype parent
-    writePng "pigy-parent-2.png"
-      . toImage
+    writeImage "pigy-parent-2.png"
       $ toPhenotype parent'
-    writePng "pigy-offspring.png"
-      . toImage
+    writeImage "pigy-offspring.png"
       $ toPhenotype offspring
 
 
-crossover :: MonadFail m
-          => StatefulGen g m
-          => g
-          -> Genotype
-          -> Genotype
-          -> m Genotype
-crossover g x y =
-  do
-    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- uniformListM 22 g
-    return
-      $ Genotype
-      {
-        ar      = if ar'    then ar x       else ar y      
-      , headx      = if headx'    then headx x       else headx y      
-      , heady      = if heady'    then heady x       else heady y      
-      , eyex      = if eyex'    then eyex x       else eyex y      
-      , eyey      = if eyey'    then eyey x       else eyey y      
-      , nosex      = if nosex'    then nosex x       else nosex y      
-      , nosey      = if nosey'    then nosey x       else nosey y      
-      , earx      = if earx'    then earx x       else earx y      
-      , eary      = if eary'    then eary x       else eary y      
-      , torso      = if torso'    then torso x       else torso y      
-      , skinh      = if skinh'    then skinh x       else skinh y      
-      , eyeh      = if eyeh'    then eyeh x       else eyeh y      
-      , eyes      = if eyes'    then eyes x       else eyes y      
-      , eyel      = if eyel'    then eyel x       else eyel y      
-      , pupilh      = if pupilh'    then pupilh x       else pupilh y      
-      , pupils      = if pupils'    then pupils x       else pupils y      
-      , pupill      = if pupill'    then pupill x       else pupill y      
-      , noseh      = if noseh'    then noseh x       else noseh y      
-      , noses      = if noses'    then noses x       else noses y      
-      , nosel      = if nosel'    then nosel x       else nosel y      
-      , eyea      = if eyea'    then eyea x       else eyea y      
-      , eyef      = if eyef'    then eyef x       else eyef y      
-      }
+type Chromosome = String
+
+
+toChromosome :: Genotype
+             -> Chromosome
+toChromosome =
+    fmap (toEnum . fromEnum)
+  . BS.unpack
+  . Base58.encodeBase58 Base58.bitcoinAlphabet
+  . LBS.toStrict
+  . encode
+
+
+fromChromosome :: Chromosome
+               -> Maybe Genotype
+fromChromosome =
+    fmap (decode . LBS.fromStrict)
+  . Base58.decodeBase58 Base58.bitcoinAlphabet
+  . BS.pack
+  . fmap (toEnum . fromEnum)
 
 
 data Genotype =
@@ -194,6 +188,7 @@ instance Uniform Genotype where
   uniformM g =
     do
       ar     <- uniformRM (0.75, 1.25) g
+      torso  <- uniformRM (0.75, 1.25) g
       headx  <- uniformRM (0.75, 1.00) g
       heady  <- uniformRM (0.75, 1.00) g
       eyex   <- uniformRM (0.75, 1.00) g
@@ -202,7 +197,6 @@ instance Uniform Genotype where
       nosey  <- uniformRM (0.75, 1.00) g
       earx   <- uniformRM (0.75, 1.00) g
       eary   <- uniformRM (0.75, 1.00) g
-      torso  <- uniformRM (0.75, 1.25) g
       skinh  <- uniformRM (270 , 390 ) g
       eyeh   <- uniformRM (0   , 360 ) g
       eyes   <- uniformRM (0.80, 1.00) g
@@ -216,6 +210,43 @@ instance Uniform Genotype where
       eyea   <- uniformRM (0   , 360 ) g
       eyef   <- uniformRM (0.2 , 1   ) g
       return Genotype{..}
+
+
+crossover :: MonadFail m
+          => StatefulGen g m
+          => g
+          -> Genotype
+          -> Genotype
+          -> m Genotype
+crossover g x y =
+  do
+    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- uniformListM 22 g
+    return
+      $ Genotype
+      {
+        ar      = if ar'     then ar     x else ar     y      
+      , headx   = if headx'  then headx  x else headx  y      
+      , heady   = if heady'  then heady  x else heady  y      
+      , eyex    = if eyex'   then eyex   x else eyex   y      
+      , eyey    = if eyey'   then eyey   x else eyey   y      
+      , nosex   = if nosex'  then nosex  x else nosex  y      
+      , nosey   = if nosey'  then nosey  x else nosey  y      
+      , earx    = if earx'   then earx   x else earx   y      
+      , eary    = if eary'   then eary   x else eary   y      
+      , torso   = if torso'  then torso  x else torso  y      
+      , skinh   = if skinh'  then skinh  x else skinh  y      
+      , eyeh    = if eyeh'   then eyeh   x else eyeh   y      
+      , eyes    = if eyes'   then eyes   x else eyes   y      
+      , eyel    = if eyel'   then eyel   x else eyel   y      
+      , pupilh  = if pupilh' then pupilh x else pupilh y      
+      , pupils  = if pupils' then pupils x else pupils y      
+      , pupill  = if pupill' then pupill x else pupill y      
+      , noseh   = if noseh'  then noseh  x else noseh  y      
+      , noses   = if noses'  then noses  x else noses  y      
+      , nosel   = if nosel'  then nosel  x else nosel  y      
+      , eyea    = if eyea'   then eyea   x else eyea   y      
+      , eyef    = if eyef'   then eyef   x else eyef   y      
+      }
 
 
 data Phenotype =
@@ -263,55 +294,26 @@ toPhenotype Genotype{..} =
     Phenotype{..}
 
 
+writeImage :: MonadIO m
+           => FilePath
+           -> Phenotype
+           -> m ()
+writeImage filename =
+    liftIO
+  . writePng filename
+  . toImage
+
+
+enlarge :: Float
+enlarge = 2
+
+
 width :: Float
 width = 245
 
 
 height :: Float
 height = 287
-
-
-withAspect :: Float
-           -> (Float, Float)
-           -> Drawing px ()
-           -> Drawing px ()
-withAspect ratio =
-  withScale
-    (
-      minimum [1,     ratio]
-    , minimum [1, 1 / ratio]
-    )
-
-
-withScale :: (Float, Float)
-          -> (Float, Float)
-          -> Drawing px ()
-          -> Drawing px ()
-withScale (sx, sy) (cx, cy) =
-  withTransformation
-    $  translate (V2    cx     cy )
-    <> scale sx sy
-    <> translate (V2 (- cx) (- cy))
-
-
-blend :: Float
-      -> PixelRGBA8
-      -> PixelRGBA8
-blend h0 (PixelRGBA8 r1 g1 b1 _) =
-  let
-    (h1, s1, l1) = hslView $ RGB (fromIntegral r1 / 255) (fromIntegral g1 / 255) (fromIntegral b1 / 255)
-    RGB{..} = hsl ((h0 + h1) / 2) s1 l1
-    q x = round $ 255 * x
-  in
-    PixelRGBA8
-      (q channelRed  )
-      (q channelGreen)
-      (q channelBlue )
-      0xFF
-
-
-enlarge :: Float
-enlarge = 2
 
 
 toImage :: Phenotype
@@ -489,3 +491,42 @@ drawNose frontColor backColor centerColor nostrilColor =
           $ roundedRectangle (V2 101.65501 117.96757) 10.00565 16.56616 3.8053 3.8053
         fill
           $ roundedRectangle (V2 (width - 101.65501-10.00565) 117.96757) 10.00565 16.56616 3.8053 3.8053
+
+
+withAspect :: Float
+           -> (Float, Float)
+           -> Drawing px ()
+           -> Drawing px ()
+withAspect ratio =
+  withScale
+    (
+      minimum [1,     ratio]
+    , minimum [1, 1 / ratio]
+    )
+
+
+withScale :: (Float, Float)
+          -> (Float, Float)
+          -> Drawing px ()
+          -> Drawing px ()
+withScale (sx, sy) (cx, cy) =
+  withTransformation
+    $  translate (V2    cx     cy )
+    <> scale sx sy
+    <> translate (V2 (- cx) (- cy))
+
+
+blend :: Float
+      -> PixelRGBA8
+      -> PixelRGBA8
+blend h0 (PixelRGBA8 r1 g1 b1 _) =
+  let
+    (h1, s1, l1) = hslView $ RGB (fromIntegral r1 / 255) (fromIntegral g1 / 255) (fromIntegral b1 / 255)
+    RGB{..} = hsl ((h0 + h1) / 2) s1 l1
+    q x = round $ 255 * x
+  in
+    PixelRGBA8
+      (q channelRed  )
+      (q channelGreen)
+      (q channelBlue )
+      0xFF
