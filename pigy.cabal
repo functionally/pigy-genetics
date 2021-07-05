@@ -18,7 +18,9 @@ executable pigy
                   , aeson
                   , aeson-pretty
                   , base16-bytestring
+                  , base58-bytestring
                   , bech32
+                  , binary
                   , bytestring
                   , cardano-api
                   , containers

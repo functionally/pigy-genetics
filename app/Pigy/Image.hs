@@ -1,3 +1,7 @@
+
+{-# LANGUAGE RecordWildCards #-}
+
+
 module Pigy.Image (
   test
 ) where
@@ -5,63 +9,185 @@ module Pigy.Image (
 
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
+import Data.Binary (Binary(..), decode, encode)
+import Data.Word (Word8)
 import Graphics.Rasterific (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
 import Graphics.Rasterific.Texture (uniformTexture)
 import Graphics.Rasterific.Transformations (scale, translate)
-import System.Random (getStdGen)
-import System.Random.Stateful (newIOGenM, randomRM)
+import System.Random (Uniform, getStdGen)
+import System.Random.Internal (uniformM, uniformRM)
+import System.Random.Stateful (newIOGenM)
+
+import qualified Data.ByteString.Lazy   as LBS
+import qualified Data.ByteString.Base58 as Base58
 
 
 test :: IO ()
 test =
   do
     g <- newIOGenM =<< getStdGen
-    aspect <- randomRM (0.75, 1.25) g
-    headx  <- randomRM (0.75, 1.00) g
-    heady  <- randomRM (0.75, 1.00) g
-    eyex   <- randomRM (0.75, 1.00) g
-    eyey   <- randomRM (0.75, 1.00) g
-    nosex  <- randomRM (0.75, 1.00) g
-    nosey  <- randomRM (0.75, 1.00) g
-    earx   <- randomRM (0.75, 1.00) g
-    eary   <- randomRM (0.75, 1.00) g
-    torso  <- randomRM (0.75, 1.25) g
-    color  <-
-      PixelRGBA8
-        <$> randomRM (0x80, 0xFF) g
-        <*> randomRM (0x40, 0xB0) g
-        <*> randomRM (0x80, 0xFF) g
-        <*> pure 0xFF
-    eyeColor  <-
-      PixelRGBA8
-        <$> randomRM (0x00, 0x9F) g
-        <*> randomRM (0x00, 0x9F) g
-        <*> randomRM (0x00, 0x9F) g
-        <*> pure 0xFF
-    pupilColor  <-
-      PixelRGBA8
-        <$> randomRM (0x60, 0xFF) g
-        <*> randomRM (0x60, 0xFF) g
-        <*> randomRM (0x60, 0xFF) g
-        <*> pure 0xFF
-    noseColor  <-
-      PixelRGBA8
-        <$> randomRM (0x00, 0xFF) g
-        <*> randomRM (0x00, 0xFF) g
-        <*> randomRM (0x00, 0xFF) g
-        <*> pure 0xFF
-    writePng "yourimage.png"
-      $ pigyImage
-        color
-        (uniformTexture eyeColor  )
-        (uniformTexture pupilColor)
-        (uniformTexture noseColor )
-        aspect
-        (headx, heady)
-        (eyex , eyey )
-        (nosex, nosey)
-        (earx , eary )
-        torso
+    genotype <- uniformM g
+    let
+      chromosome = encode genotype
+      phenotype = toPhenotype genotype
+      tag = init . tail . show . Base58.encodeBase58 Base58.bitcoinAlphabet $ LBS.toStrict chromosome
+    writePng ("pigy-" ++ tag ++ ".png")
+      $ pigyImage phenotype
+    putStrLn tag
+
+
+data Genotype =
+  Genotype
+  {
+    ar     :: Float
+  , headx  :: Float
+  , heady  :: Float
+  , eyex   :: Float
+  , eyey   :: Float
+  , nosex  :: Float
+  , nosey  :: Float
+  , earx   :: Float
+  , eary   :: Float
+  , torso  :: Float
+  , skinr  :: Word8
+  , sking  :: Word8
+  , skinb  :: Word8
+  , eyer   :: Word8
+  , eyeg   :: Word8
+  , eyeb   :: Word8
+  , pupilr :: Word8
+  , pupilg :: Word8
+  , pupilb :: Word8
+  , noser  :: Word8
+  , noseg  :: Word8
+  , noseb  :: Word8
+  }
+    deriving (Eq, Ord, Read, Show)
+
+instance Binary Genotype where
+  put Genotype{..} =
+    do
+      let
+        quantize2 :: (Float, Float) -> Float -> (Float, Float) -> Float -> Word8
+        quantize2 (x0, x1) x (y0, y1) y =
+          let
+            hi = round $ 15 * (x - x0) / (x1 - x0)
+            lo = round $ 15 * (y - y0) / (y1 - y0)
+          in
+            16 * hi + lo
+        quantize3 :: (Word8, Word8) -> Word8 -> (Word8, Word8) -> Word8 -> Word8
+        quantize3 (x0, x1) x (y0, y1) y =
+          let
+            hi = round $ (15 :: Float) * fromIntegral (x - x0) / fromIntegral (x1 - x0)
+            lo = round $ (15 :: Float) * fromIntegral (y - y0) / fromIntegral (y1 - y0)
+          in
+            16 * hi + lo
+      put $ quantize2 (0.75, 1.25) ar     (0.75, 1.25) torso
+      put $ quantize2 (0.75, 1.00) headx  (0.75, 1.00) heady
+      put $ quantize2 (0.75, 1.00) eyex   (0.75, 1.00) eyey
+      put $ quantize2 (0.75, 1.00) nosex  (0.75, 1.00) nosey
+      put $ quantize2 (0.75, 1.00) earx   (0.75, 1.00) eary
+      put $ quantize3 (0x80, 0xFF) skinr  (0x40, 0xB0) sking 
+      put $ quantize3 (0x80, 0xFF) skinb  (0x00, 0x9F) eyer   
+      put $ quantize3 (0x00, 0x9F) eyeg   (0x00, 0x9F) eyeb   
+      put $ quantize3 (0x60, 0xFF) pupilr (0x60, 0xFF) pupilg
+      put $ quantize3 (0x60, 0xFF) pupilb (0x00, 0xFF) noser  
+      put $ quantize3 (0x00, 0xFF) noseg  (0x00, 0xFF) noseb  
+  get =
+    do
+      let
+        unquantize2 :: (Float, Float) -> (Float, Float) -> Word8 -> (Float, Float)
+        unquantize2 (x0, x1) (y0, y1) w =
+          let
+            (hi, lo) = w `divMod` 16
+          in
+            (
+              x0 + (x1 - x0) * fromIntegral hi / 15
+            , y0 + (y1 - y0) * fromIntegral lo / 15
+            )
+        unquantize3 :: (Word8, Word8) -> (Word8, Word8) -> Word8 -> (Word8, Word8)
+        unquantize3 (x0, x1) (y0, y1) w =
+          let
+            (hi, lo) = w `divMod` 16
+          in
+            (
+              round $ fromIntegral x0 + fromIntegral (x1 - x0) * fromIntegral hi / (15 :: Float)
+            , round $ fromIntegral y0 + fromIntegral (y1 - y0) * fromIntegral lo / (15 :: Float)
+            )
+      (ar    , torso ) <- unquantize2 (0.75, 1.25) (0.75, 1.25) <$> get
+      (headx , heady ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
+      (eyex  , eyey  ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
+      (nosex , nosey ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
+      (earx  , eary  ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
+      (skinr , sking ) <- unquantize3 (0x80, 0xFF) (0x40, 0xB0) <$> get 
+      (skinb , eyer  ) <- unquantize3 (0x80, 0xFF) (0x00, 0x9F) <$> get 
+      (eyeg  , eyeb  ) <- unquantize3 (0x00, 0x9F) (0x00, 0x9F) <$> get 
+      (pupilr, pupilg) <- unquantize3 (0x60, 0xFF) (0x60, 0xFF) <$> get 
+      (pupilb, noser ) <- unquantize3 (0x60, 0xFF) (0x00, 0xFF) <$> get 
+      (noseg , noseb ) <- unquantize3 (0x00, 0xFF) (0x00, 0xFF) <$> get 
+      return Genotype{..}
+
+instance Uniform Genotype where
+  uniformM g =
+    do
+      ar     <- uniformRM (0.75, 1.25) g
+      headx  <- uniformRM (0.75, 1.00) g
+      heady  <- uniformRM (0.75, 1.00) g
+      eyex   <- uniformRM (0.75, 1.00) g
+      eyey   <- uniformRM (0.75, 1.00) g
+      nosex  <- uniformRM (0.75, 1.00) g
+      nosey  <- uniformRM (0.75, 1.00) g
+      earx   <- uniformRM (0.75, 1.00) g
+      eary   <- uniformRM (0.75, 1.00) g
+      torso  <- uniformRM (0.75, 1.25) g
+      skinr  <- uniformRM (0x80, 0xFF) g
+      sking  <- uniformRM (0x40, 0xB0) g
+      skinb  <- uniformRM (0x80, 0xFF) g
+      eyer   <- uniformRM (0x00, 0x9F) g
+      eyeg   <- uniformRM (0x00, 0x9F) g
+      eyeb   <- uniformRM (0x00, 0x9F) g
+      pupilr <- uniformRM (0x60, 0xFF) g
+      pupilg <- uniformRM (0x60, 0xFF) g
+      pupilb <- uniformRM (0x60, 0xFF) g
+      noser  <- uniformRM (0x00, 0xFF) g
+      noseg  <- uniformRM (0x00, 0xFF) g
+      noseb  <- uniformRM (0x00, 0xFF) g
+      return Genotype{..}
+
+
+data Phenotype =
+  Phenotype
+  {
+    skinColor      :: PixelRGBA8
+  , eyeColor       :: PixelRGBA8
+  , pupilColor     :: PixelRGBA8
+  , noseColor      :: PixelRGBA8
+  , aspect         :: Float
+  , headScale      :: (Float, Float)
+  , eyeScale       :: (Float, Float)
+  , noseScale      :: (Float, Float)
+  , earScale       :: (Float, Float)
+  , bodyScale      :: Float
+  }
+    deriving (Eq, Ord, Show)
+
+
+toPhenotype :: Genotype
+            -> Phenotype
+toPhenotype Genotype{..} =
+  let
+    skinColor  = PixelRGBA8 skinr sking skinb 0xFF
+    eyeColor   = PixelRGBA8 eyer  eyeg  eyeb  0xFF
+    pupilColor = PixelRGBA8 pupilr pupilg pupilb 0xFF
+    noseColor  = PixelRGBA8 noser  noseg  noseb  0xFF
+    aspect     = ar
+    headScale  = (headx, heady)
+    eyeScale   = (eyex , eyey )
+    noseScale  = (nosex, nosey)
+    earScale   = (earx , eary )
+    bodyScale  = torso
+  in
+    Phenotype{..}
 
 
 width :: Float
@@ -76,11 +202,11 @@ withAspect :: Float
            -> (Float, Float)
            -> Drawing px ()
            -> Drawing px ()
-withAspect aspect =
+withAspect ratio =
   withScale
     (
-      minimum [1,     aspect]
-    , minimum [1, 1 / aspect]
+      minimum [1,     ratio]
+    , minimum [1, 1 / ratio]
     )
 
 
@@ -106,35 +232,26 @@ blend (PixelRGBA8 r0 g0 b0 _) (PixelRGBA8 r1 g1 b1 _) =
     0xFF
 
 
-pigyImage :: PixelRGBA8
-          -> Texture PixelRGBA8
-          -> Texture PixelRGBA8
-          -> Texture PixelRGBA8
-          -> Float
-          -> (Float, Float)
-          -> (Float, Float)
-          -> (Float, Float)
-          -> (Float, Float)
-          -> Float
+pigyImage :: Phenotype
           -> Image PixelRGBA8
-pigyImage color eyeColor pupilColor noseColor aspect headScale eyeScale noseScale earScale bodyScale =
+pigyImage Phenotype{..} =
   renderDrawing (round width) (round height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
     . withAspect aspect (width / 2, height / 2)
     $ do
       let
-        pink1 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
-        pink2 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
-        pink3 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
-        pink4 = uniformTexture . blend color $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
-        pink5 = uniformTexture . blend color $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
+        pink1 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
+        pink2 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
+        pink3 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
+        pink4 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
+        pink5 = uniformTexture . blend skinColor $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
       drawBody bodyScale pink1 pink2 pink1
       withScale headScale (width / 2, 150)
         $ do
           drawHead pink3 pink4
-          drawEyes eyeScale eyeColor pupilColor
+          drawEyes eyeScale (uniformTexture eyeColor) (uniformTexture pupilColor)
           drawEars earScale pink2 pink1
           withScale noseScale (width / 2, 125)
-            $ drawNose pink5 pink4 pink3 noseColor
+            $ drawNose pink5 pink4 pink3 (uniformTexture noseColor)
 
 
 drawBody :: Float
