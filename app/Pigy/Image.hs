@@ -61,6 +61,8 @@ data Genotype =
   , noseh  :: Float
   , noses  :: Float
   , nosel  :: Float
+  , eyea   :: Float
+  , eyef   :: Float
   }
     deriving (Eq, Ord, Read, Show)
 
@@ -81,10 +83,11 @@ instance Binary Genotype where
       put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
       put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
       put $ quantize (270 , 390 ) skinh  (0   , 360 ) eyeh   
-      put $ quantize (0.80, 1.00) eyes   (0.00, 0.50) eyel   
+      put $ quantize (0.80, 1.00) eyes   (0.65, 1.00) eyel   
       put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
-      put $ quantize (0.50, 1.00) pupill (0   , 360 ) noseh  
-      put $ quantize (0.80, 1.00) noses  (0.00, 0.50) nosel  
+      put $ quantize (0.00, 0.35) pupill (0   , 360 ) noseh  
+      put $ quantize (0.80, 1.00) noses  (0.00, 0.40) nosel  
+      put $ quantize (0   , 360 ) eyea   (0.2 , 1   ) eyef
   get =
     do
       let
@@ -103,10 +106,11 @@ instance Binary Genotype where
       (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (skinh , eyeh  ) <- unquantize (270 , 390 ) (0   , 360 ) <$> get 
-      (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
+      (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.65, 1.00) <$> get 
       (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
-      (pupill, noseh ) <- unquantize (0.50, 1.00) (0   , 360 ) <$> get 
-      (noses , nosel ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
+      (pupill, noseh ) <- unquantize (0.00, 0.35) (0   , 360 ) <$> get 
+      (noses , nosel ) <- unquantize (0.80, 1.00) (0.00, 0.40) <$> get 
+      (eyea  , eyef  ) <- unquantize (0   , 360 ) (0.2 , 1   ) <$> get
       return Genotype{..}
 
 instance Uniform Genotype where
@@ -125,29 +129,33 @@ instance Uniform Genotype where
       skinh  <- uniformRM (270 , 390 ) g
       eyeh   <- uniformRM (0   , 360 ) g
       eyes   <- uniformRM (0.80, 1.00) g
-      eyel   <- uniformRM (0.00, 0.50) g
+      eyel   <- uniformRM (0.65, 1.00) g
       pupilh <- uniformRM (0   , 360 ) g
       pupils <- uniformRM (0.80, 1.00) g
-      pupill <- uniformRM (0.50, 1.00) g
+      pupill <- uniformRM (0.00, 0.35) g
       noseh  <- uniformRM (0   , 360 ) g
       noses  <- uniformRM (0.80, 1.00) g
-      nosel  <- uniformRM (0.00, 0.50) g
+      nosel  <- uniformRM (0.00, 0.40) g
+      eyea   <- uniformRM (0   , 360 ) g
+      eyef   <- uniformRM (0.2 , 1   ) g
       return Genotype{..}
 
 
 data Phenotype =
   Phenotype
   {
-    skinHue        :: Float
-  , eyeColor       :: PixelRGBA8
-  , pupilColor     :: PixelRGBA8
-  , noseColor      :: PixelRGBA8
-  , aspect         :: Float
-  , headScale      :: (Float, Float)
-  , eyeScale       :: (Float, Float)
-  , noseScale      :: (Float, Float)
-  , earScale       :: (Float, Float)
-  , bodyScale      :: Float
+    skinHue     :: Float
+  , eyeColor    :: PixelRGBA8
+  , pupilColor  :: PixelRGBA8
+  , noseColor   :: PixelRGBA8
+  , aspect      :: Float
+  , headScale   :: (Float, Float)
+  , eyeScale    :: (Float, Float)
+  , noseScale   :: (Float, Float)
+  , earScale    :: (Float, Float)
+  , bodyScale   :: Float
+  , eyeAngle    :: Float
+  , eyeFraction :: Float
   }
     deriving (Eq, Ord, Show)
 
@@ -162,16 +170,18 @@ toPhenotype Genotype{..} =
         q x = round $ 255 * x
       in
         PixelRGBA8 (q channelRed) (q channelGreen) (q channelBlue) 0xFF
-    skinHue    = skinh
-    eyeColor   = hsl2rgb eyeh  eyes  eyel
-    pupilColor = hsl2rgb pupilh pupils pupill
-    noseColor  = hsl2rgb noseh  noses  nosel
-    aspect     = ar
-    headScale  = (headx, heady)
-    eyeScale   = (eyex , eyey )
-    noseScale  = (nosex, nosey)
-    earScale   = (earx , eary )
-    bodyScale  = torso
+    skinHue     = skinh
+    eyeColor    = hsl2rgb eyeh  eyes  eyel
+    pupilColor  = hsl2rgb pupilh pupils pupill
+    noseColor   = hsl2rgb noseh  noses  nosel
+    aspect      = ar
+    headScale   = (headx, heady)
+    eyeScale    = (eyex , eyey )
+    noseScale   = (nosex, nosey)
+    earScale    = (earx , eary )
+    bodyScale   = torso
+    eyeAngle    = eyea * pi / 180
+    eyeFraction = eyef
   in
     Phenotype{..}
 
@@ -244,7 +254,7 @@ pigyImage Phenotype{..} =
       withScale headScale (width / 2, 150)
         $ do
           drawHead pink3 pink4
-          drawEyes eyeScale (uniformTexture eyeColor) (uniformTexture pupilColor)
+          drawEyes (eyeFraction, eyeAngle) eyeScale (uniformTexture eyeColor) (uniformTexture pupilColor)
           drawEars earScale pink2 pink1
           withScale noseScale (width / 2, 125)
             $ drawNose pink5 pink4 pink3 (uniformTexture noseColor)
@@ -284,10 +294,11 @@ drawHead frontColor backColor =
 
 
 drawEyes :: (Float, Float)
+         -> (Float, Float)
          -> Texture px
          -> Texture px
          -> Drawing px ()
-drawEyes eyeScale eyeColor pupilColor =
+drawEyes (eyeFraction, eyeAngle) eyeScale eyeColor pupilColor =
   do
     withScale eyeScale (75, 100)
       $ do
@@ -296,7 +307,7 @@ drawEyes eyeScale eyeColor pupilColor =
           $ circle (V2 75.04925 101.45342) 9.72327
         withTexture pupilColor
           . fill
-          $ circle (V2 70.61203 97.36941) 3.64652
+          $ circle (V2 (75.04925 + 6.03059 * eyeFraction * cos eyeAngle) (101.45342 + 6.03059 * eyeFraction * sin eyeAngle)) 3.64652
     withScale eyeScale (170, 100)
       $ do
         withTexture eyeColor
@@ -304,7 +315,7 @@ drawEyes eyeScale eyeColor pupilColor =
           $ circle (V2 (width - 75.04925) 101.45342) 9.72327
         withTexture pupilColor
           . fill
-          $ circle (V2 (width - 70.61203) 97.36941) 3.64652
+          $ circle (V2 (width - 75.04925 + 6.03059 * eyeFraction * cos eyeAngle) (101.45342 + 6.03059 * eyeFraction * sin eyeAngle)) 3.64652
 
 
 drawEars :: (Float, Float)
