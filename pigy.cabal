@@ -23,6 +23,7 @@ executable pigy
                   , binary
                   , bytestring
                   , cardano-api
+                  , colour
                   , containers
                   , cryptonite
                   , extra

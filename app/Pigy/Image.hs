@@ -6,10 +6,11 @@ module Pigy.Image (
   test
 ) where
 
-
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
-import Data.Binary (Binary(..), decode, encode)
+import Data.Binary (Binary(..), encode)
+import Data.Colour.RGBSpace.HSL (hsl)
+import Data.Colour.SRGB (RGB(..))
 import Data.Word (Word8)
 import Graphics.Rasterific (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
 import Graphics.Rasterific.Texture (uniformTexture)
@@ -49,18 +50,18 @@ data Genotype =
   , earx   :: Float
   , eary   :: Float
   , torso  :: Float
-  , skinr  :: Word8
-  , sking  :: Word8
-  , skinb  :: Word8
-  , eyer   :: Word8
-  , eyeg   :: Word8
-  , eyeb   :: Word8
-  , pupilr :: Word8
-  , pupilg :: Word8
-  , pupilb :: Word8
-  , noser  :: Word8
-  , noseg  :: Word8
-  , noseb  :: Word8
+  , skinh  :: Float
+  , skins  :: Float
+  , skinl  :: Float
+  , eyeh   :: Float
+  , eyes   :: Float
+  , eyel   :: Float
+  , pupilh :: Float
+  , pupils :: Float
+  , pupill :: Float
+  , noseh  :: Float
+  , noses  :: Float
+  , nosel  :: Float
   }
     deriving (Eq, Ord, Read, Show)
 
@@ -68,36 +69,29 @@ instance Binary Genotype where
   put Genotype{..} =
     do
       let
-        quantize2 :: (Float, Float) -> Float -> (Float, Float) -> Float -> Word8
-        quantize2 (x0, x1) x (y0, y1) y =
+        quantize :: (Float, Float) -> Float -> (Float, Float) -> Float -> Word8
+        quantize (x0, x1) x (y0, y1) y =
           let
             hi = round $ 15 * (x - x0) / (x1 - x0)
             lo = round $ 15 * (y - y0) / (y1 - y0)
           in
             16 * hi + lo
-        quantize3 :: (Word8, Word8) -> Word8 -> (Word8, Word8) -> Word8 -> Word8
-        quantize3 (x0, x1) x (y0, y1) y =
-          let
-            hi = round $ (15 :: Float) * fromIntegral (x - x0) / fromIntegral (x1 - x0)
-            lo = round $ (15 :: Float) * fromIntegral (y - y0) / fromIntegral (y1 - y0)
-          in
-            16 * hi + lo
-      put $ quantize2 (0.75, 1.25) ar     (0.75, 1.25) torso
-      put $ quantize2 (0.75, 1.00) headx  (0.75, 1.00) heady
-      put $ quantize2 (0.75, 1.00) eyex   (0.75, 1.00) eyey
-      put $ quantize2 (0.75, 1.00) nosex  (0.75, 1.00) nosey
-      put $ quantize2 (0.75, 1.00) earx   (0.75, 1.00) eary
-      put $ quantize3 (0x80, 0xFF) skinr  (0x40, 0xB0) sking 
-      put $ quantize3 (0x80, 0xFF) skinb  (0x00, 0x9F) eyer   
-      put $ quantize3 (0x00, 0x9F) eyeg   (0x00, 0x9F) eyeb   
-      put $ quantize3 (0x60, 0xFF) pupilr (0x60, 0xFF) pupilg
-      put $ quantize3 (0x60, 0xFF) pupilb (0x00, 0xFF) noser  
-      put $ quantize3 (0x00, 0xFF) noseg  (0x00, 0xFF) noseb  
+      put $ quantize (0.75, 1.25) ar     (0.75, 1.25) torso
+      put $ quantize (0.75, 1.00) headx  (0.75, 1.00) heady
+      put $ quantize (0.75, 1.00) eyex   (0.75, 1.00) eyey
+      put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
+      put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
+      put $ quantize (0   , 360 ) skinh  (0.80, 1.00) skins 
+      put $ quantize (0.35, 0.65) skinl  (0   , 360 ) eyeh   
+      put $ quantize (0.80, 1.00) eyes   (0.00, 0.50) eyel   
+      put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
+      put $ quantize (0.50, 1.00) pupill (0   , 360 ) noseh  
+      put $ quantize (0.80, 1.00) noses  (0.00, 0.50) nosel  
   get =
     do
       let
-        unquantize2 :: (Float, Float) -> (Float, Float) -> Word8 -> (Float, Float)
-        unquantize2 (x0, x1) (y0, y1) w =
+        unquantize :: (Float, Float) -> (Float, Float) -> Word8 -> (Float, Float)
+        unquantize (x0, x1) (y0, y1) w =
           let
             (hi, lo) = w `divMod` 16
           in
@@ -105,26 +99,17 @@ instance Binary Genotype where
               x0 + (x1 - x0) * fromIntegral hi / 15
             , y0 + (y1 - y0) * fromIntegral lo / 15
             )
-        unquantize3 :: (Word8, Word8) -> (Word8, Word8) -> Word8 -> (Word8, Word8)
-        unquantize3 (x0, x1) (y0, y1) w =
-          let
-            (hi, lo) = w `divMod` 16
-          in
-            (
-              round $ fromIntegral x0 + fromIntegral (x1 - x0) * fromIntegral hi / (15 :: Float)
-            , round $ fromIntegral y0 + fromIntegral (y1 - y0) * fromIntegral lo / (15 :: Float)
-            )
-      (ar    , torso ) <- unquantize2 (0.75, 1.25) (0.75, 1.25) <$> get
-      (headx , heady ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
-      (eyex  , eyey  ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
-      (nosex , nosey ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
-      (earx  , eary  ) <- unquantize2 (0.75, 1.00) (0.75, 1.00) <$> get
-      (skinr , sking ) <- unquantize3 (0x80, 0xFF) (0x40, 0xB0) <$> get 
-      (skinb , eyer  ) <- unquantize3 (0x80, 0xFF) (0x00, 0x9F) <$> get 
-      (eyeg  , eyeb  ) <- unquantize3 (0x00, 0x9F) (0x00, 0x9F) <$> get 
-      (pupilr, pupilg) <- unquantize3 (0x60, 0xFF) (0x60, 0xFF) <$> get 
-      (pupilb, noser ) <- unquantize3 (0x60, 0xFF) (0x00, 0xFF) <$> get 
-      (noseg , noseb ) <- unquantize3 (0x00, 0xFF) (0x00, 0xFF) <$> get 
+      (ar    , torso ) <- unquantize (0.75, 1.25) (0.75, 1.25) <$> get
+      (headx , heady ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
+      (eyex  , eyey  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
+      (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
+      (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
+      (skinh , skins ) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
+      (skinl , eyeh  ) <- unquantize (0.35, 0.65) (0   , 360 ) <$> get 
+      (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
+      (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
+      (pupill, noseh ) <- unquantize (0.50, 1.00) (0   , 360 ) <$> get 
+      (noses , nosel ) <- unquantize (0.80, 1.00) (0.00, 0.50) <$> get 
       return Genotype{..}
 
 instance Uniform Genotype where
@@ -140,18 +125,18 @@ instance Uniform Genotype where
       earx   <- uniformRM (0.75, 1.00) g
       eary   <- uniformRM (0.75, 1.00) g
       torso  <- uniformRM (0.75, 1.25) g
-      skinr  <- uniformRM (0x80, 0xFF) g
-      sking  <- uniformRM (0x40, 0xB0) g
-      skinb  <- uniformRM (0x80, 0xFF) g
-      eyer   <- uniformRM (0x00, 0x9F) g
-      eyeg   <- uniformRM (0x00, 0x9F) g
-      eyeb   <- uniformRM (0x00, 0x9F) g
-      pupilr <- uniformRM (0x60, 0xFF) g
-      pupilg <- uniformRM (0x60, 0xFF) g
-      pupilb <- uniformRM (0x60, 0xFF) g
-      noser  <- uniformRM (0x00, 0xFF) g
-      noseg  <- uniformRM (0x00, 0xFF) g
-      noseb  <- uniformRM (0x00, 0xFF) g
+      skinh  <- uniformRM (270 , 390 ) g
+      skins  <- uniformRM (0.80, 1.00) g
+      skinl  <- uniformRM (0.35, 0.65) g
+      eyeh   <- uniformRM (0   , 360 ) g
+      eyes   <- uniformRM (0.80, 1.00) g
+      eyel   <- uniformRM (0.00, 0.50) g
+      pupilh <- uniformRM (0   , 360 ) g
+      pupils <- uniformRM (0.80, 1.00) g
+      pupill <- uniformRM (0.50, 1.00) g
+      noseh  <- uniformRM (0   , 360 ) g
+      noses  <- uniformRM (0.80, 1.00) g
+      nosel  <- uniformRM (0.00, 0.50) g
       return Genotype{..}
 
 
@@ -176,10 +161,16 @@ toPhenotype :: Genotype
             -> Phenotype
 toPhenotype Genotype{..} =
   let
-    skinColor  = PixelRGBA8 skinr sking skinb 0xFF
-    eyeColor   = PixelRGBA8 eyer  eyeg  eyeb  0xFF
-    pupilColor = PixelRGBA8 pupilr pupilg pupilb 0xFF
-    noseColor  = PixelRGBA8 noser  noseg  noseb  0xFF
+    hsl2rgb h s l =
+      let
+        RGB{..} = hsl h s l
+        q x = round $ 255 * x
+      in
+        PixelRGBA8 (q channelRed) (q channelGreen) (q channelBlue) 0xFF
+    skinColor  = hsl2rgb skinh skins skinl
+    eyeColor   = hsl2rgb eyeh  eyes  eyel
+    pupilColor = hsl2rgb pupilh pupils pupill
+    noseColor  = hsl2rgb noseh  noses  nosel
     aspect     = ar
     headScale  = (headx, heady)
     eyeScale   = (eyex , eyey )
