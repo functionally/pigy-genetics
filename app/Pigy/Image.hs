@@ -1,5 +1,6 @@
 
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards  #-}
 
 
 module Pigy.Image (
@@ -32,6 +33,15 @@ test :: IO ()
 test =
   do
     g <- newIOGenM =<< getStdGen
+    testCreate g
+    testCrossover g
+
+
+testCreate :: StatefulGen g IO
+           => g
+           -> IO ()
+testCreate g =
+  do
     genotype <- uniformM g :: IO Genotype
     let
       chromosome = encode genotype
@@ -41,20 +51,31 @@ test =
     writePng ("pigy-" ++ tag ++ ".png")
       $ toImage phenotype
     putStrLn tag
-    other <- uniformM g :: IO Genotype
-    print genotype
-    print other
-    child <- crossover g genotype other
-    print child
-    writePng "pigy-father.png"
+
+
+testCrossover :: StatefulGen g IO
+              => g
+              -> IO ()
+testCrossover g =
+  do
+    parent  <- uniformM g
+    parent' <- uniformM g
+    putStrLn ""
+    putStrLn $ "Parent 1: " ++ show parent
+    putStrLn ""
+    putStrLn $ "Parent 2: " ++ show parent'
+    offspring <- crossover g parent parent'
+    putStrLn ""
+    putStrLn $ "Offsping: " ++ show offspring
+    writePng "pigy-parent-1.png"
       . toImage
-      $ toPhenotype genotype
-    writePng "pigy-mother.png"
+      $ toPhenotype parent
+    writePng "pigy-parent-2.png"
       . toImage
-      $ toPhenotype other
-    writePng "pigy-child.png"
+      $ toPhenotype parent'
+    writePng "pigy-offspring.png"
       . toImage
-      $ toPhenotype child
+      $ toPhenotype offspring
 
 
 crossover :: MonadFail m
