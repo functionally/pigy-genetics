@@ -223,10 +223,15 @@ blend h0 (PixelRGBA8 r1 g1 b1 _) =
       0xFF
 
 
+enlarge :: Float
+enlarge = 2
+
+
 pigyImage :: Phenotype
           -> Image PixelRGBA8
 pigyImage Phenotype{..} =
-  renderDrawing (round width) (round height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
+  renderDrawing (round $ enlarge * width) (round $ enlarge * height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
+    . withTransformation (scale enlarge enlarge)
     . withAspect aspect (width / 2, height / 2)
     $ do
       let
