@@ -31,6 +31,7 @@ executable pigy
                   , mtl
                   , optparse-applicative
                   , ouroboros-network
+                  , random
                   , Rasterific
                   , text
                   , transformers

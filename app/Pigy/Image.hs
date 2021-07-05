@@ -8,18 +8,32 @@ import Codec.Picture.Types (Image)
 import Graphics.Rasterific (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
 import Graphics.Rasterific.Texture (uniformTexture)
 import Graphics.Rasterific.Transformations (scale, translate)
+import System.Random (getStdGen)
+import System.Random.Stateful (newIOGenM, randomRM)
 
 
 test :: IO ()
 test =
-  writePng "yourimage.png"
-    $ pigyImage
-      1       -- aspect ratio
-      (1, 1)  -- head scale
-      (1, 1)  -- eye scale
-      (1, 1)  -- nose scale
-      (1, 1)  -- ear scale
-      1       -- torso scale
+  do
+    g <- newIOGenM =<< getStdGen
+    aspect <- randomRM (0.75, 1.25) g
+    headx  <- randomRM (0.75, 1.00) g
+    heady  <- randomRM (0.75, 1.00) g
+    eyex   <- randomRM (0.75, 1.00) g
+    eyey   <- randomRM (0.75, 1.00) g
+    nosex  <- randomRM (0.75, 1.00) g
+    nosey  <- randomRM (0.75, 1.00) g
+    earx   <- randomRM (0.75, 1.00) g
+    eary   <- randomRM (0.75, 1.00) g
+    torso  <- randomRM (0.75, 1.25) g
+    writePng "yourimage.png"
+      $ pigyImage
+        aspect
+        (headx, heady)
+        (eyex , eyey )
+        (nosex, nosey)
+        (earx , eary )
+        torso
 
 
 white :: Texture PixelRGBA8
