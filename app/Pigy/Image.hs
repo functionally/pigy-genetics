@@ -3,7 +3,12 @@
 
 
 module Pigy.Image (
-  test
+  Genotype(..)
+, Phenotype(..)
+, toPhenotype
+, toImage
+, crossover
+, test
 ) where
 
 import Codec.Picture(PixelRGBA8(..), writePng)
@@ -17,7 +22,7 @@ import Graphics.Rasterific.Texture (uniformTexture)
 import Graphics.Rasterific.Transformations (scale, translate)
 import System.Random (Uniform, getStdGen)
 import System.Random.Internal (uniformM, uniformRM)
-import System.Random.Stateful (newIOGenM)
+import System.Random.Stateful (StatefulGen, newIOGenM, uniformListM)
 
 import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.ByteString.Base58 as Base58
@@ -34,8 +39,59 @@ test =
       phenotype = toPhenotype genotype'
       tag = init . tail . show . Base58.encodeBase58 Base58.bitcoinAlphabet $ LBS.toStrict chromosome
     writePng ("pigy-" ++ tag ++ ".png")
-      $ pigyImage phenotype
+      $ toImage phenotype
     putStrLn tag
+    other <- uniformM g :: IO Genotype
+    print genotype
+    print other
+    child <- crossover g genotype other
+    print child
+    writePng "pigy-father.png"
+      . toImage
+      $ toPhenotype genotype
+    writePng "pigy-mother.png"
+      . toImage
+      $ toPhenotype other
+    writePng "pigy-child.png"
+      . toImage
+      $ toPhenotype child
+
+
+crossover :: MonadFail m
+          => StatefulGen g m
+          => g
+          -> Genotype
+          -> Genotype
+          -> m Genotype
+crossover g x y =
+  do
+    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- uniformListM 22 g
+    return
+      $ Genotype
+      {
+        ar      = if ar'    then ar x       else ar y      
+      , headx      = if headx'    then headx x       else headx y      
+      , heady      = if heady'    then heady x       else heady y      
+      , eyex      = if eyex'    then eyex x       else eyex y      
+      , eyey      = if eyey'    then eyey x       else eyey y      
+      , nosex      = if nosex'    then nosex x       else nosex y      
+      , nosey      = if nosey'    then nosey x       else nosey y      
+      , earx      = if earx'    then earx x       else earx y      
+      , eary      = if eary'    then eary x       else eary y      
+      , torso      = if torso'    then torso x       else torso y      
+      , skinh      = if skinh'    then skinh x       else skinh y      
+      , eyeh      = if eyeh'    then eyeh x       else eyeh y      
+      , eyes      = if eyes'    then eyes x       else eyes y      
+      , eyel      = if eyel'    then eyel x       else eyel y      
+      , pupilh      = if pupilh'    then pupilh x       else pupilh y      
+      , pupils      = if pupils'    then pupils x       else pupils y      
+      , pupill      = if pupill'    then pupill x       else pupill y      
+      , noseh      = if noseh'    then noseh x       else noseh y      
+      , noses      = if noses'    then noses x       else noses y      
+      , nosel      = if nosel'    then nosel x       else nosel y      
+      , eyea      = if eyea'    then eyea x       else eyea y      
+      , eyef      = if eyef'    then eyef x       else eyef y      
+      }
 
 
 data Genotype =
@@ -237,9 +293,9 @@ enlarge :: Float
 enlarge = 2
 
 
-pigyImage :: Phenotype
-          -> Image PixelRGBA8
-pigyImage Phenotype{..} =
+toImage :: Phenotype
+        -> Image PixelRGBA8
+toImage Phenotype{..} =
   renderDrawing (round $ enlarge * width) (round $ enlarge * height) (PixelRGBA8 0xFF 0xFF 0xFF 0x00)
     . withTransformation (scale enlarge enlarge)
     . withAspect aspect (width / 2, height / 2)
