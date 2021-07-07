@@ -14,10 +14,14 @@ module Pigy.Image (
 , writeImage
 , crossover
 , test
+, testCreate
+, testCrossover
+, testTree
 ) where
 
 import Codec.Picture(PixelRGBA8(..), writePng)
 import Codec.Picture.Types (Image)
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Binary (Binary(..), decode, encode)
 import Data.Colour.RGBSpace.HSL (hsl, hslView)
@@ -39,8 +43,9 @@ test :: IO ()
 test =
   do
     g <- newIOGenM =<< getStdGen
-    testCreate g
-    testCrossover g
+--  testCreate g
+--  testCrossover g
+    testTree g
 
 
 testCreate :: StatefulGen g IO
@@ -85,6 +90,82 @@ testCrossover g =
       $ toPhenotype parent'
     writeImage "pigy-offspring.png"
       $ toPhenotype offspring
+
+
+testTree :: StatefulGen g IO
+         => g
+         -> IO ()
+testTree g =
+  do
+    putStrLn "digraph pigy {"
+    parents <- replicateM 6 (uniformM g)
+    sequence_
+      [
+        do
+          putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
+          writeImage filename $ toPhenotype parent
+      |
+        parent <- parents
+      , let tag      =  toChromosome parent
+            filename = "pigy-" ++ tag ++ ".png"
+      ]
+    children <-
+      sequence
+        [
+          do
+            child <- crossover g parent1 parent2
+            let
+              tag      =  toChromosome child
+              filename = "pigy-" ++ tag ++ ".png"
+            putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
+            putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
+            putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
+            writeImage filename $ toPhenotype child
+            return child
+        |
+          (parent1, parent2) <- zip (init parents) (tail parents)
+        , let
+            tag1 =  toChromosome parent1
+            tag2 =  toChromosome parent2
+        ]
+    grandchildren <-
+      sequence
+        [
+          do
+            child <- crossover g parent1 parent2
+            let
+              tag      =  toChromosome child
+              filename = "pigy-" ++ tag ++ ".png"
+            putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
+            putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
+            putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
+            writeImage filename $ toPhenotype child
+            return child
+        |
+          (parent1, parent2) <- zip (init children) (tail children)
+        , let
+            tag1 =  toChromosome parent1
+            tag2 =  toChromosome parent2
+        ]
+    sequence_
+      [
+        do
+          child <- crossover g parent1 parent2
+          let
+            tag      =  toChromosome child
+            filename = "pigy-" ++ tag ++ ".png"
+          putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
+          putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
+          putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
+          writeImage filename $ toPhenotype child
+          return child
+      |
+        (parent1, parent2) <- zip (init grandchildren) (tail grandchildren)
+      , let
+          tag1 =  toChromosome parent1
+          tag2 =  toChromosome parent2
+      ]
+    putStrLn "}"
 
 
 type Chromosome = String
@@ -153,7 +234,7 @@ instance Binary Genotype where
       put $ quantize (0.75, 1.00) eyex   (0.75, 1.00) eyey
       put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
       put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
-      put $ quantize (270 , 390 ) skinh  (0   , 360 ) eyeh   
+      put $ quantize (210 , 450 ) skinh  (0   , 360 ) eyeh   
       put $ quantize (0.80, 1.00) eyes   (0.65, 1.00) eyel   
       put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
       put $ quantize (0.00, 0.35) pupill (0   , 360 ) noseh  
@@ -176,7 +257,7 @@ instance Binary Genotype where
       (eyex  , eyey  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
       (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (skinh , eyeh  ) <- unquantize (270 , 390 ) (0   , 360 ) <$> get 
+      (skinh , eyeh  ) <- unquantize (210 , 450 ) (0   , 360 ) <$> get 
       (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.65, 1.00) <$> get 
       (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
       (pupill, noseh ) <- unquantize (0.00, 0.35) (0   , 360 ) <$> get 
@@ -197,7 +278,7 @@ instance Uniform Genotype where
       nosey  <- uniformRM (0.75, 1.00) g
       earx   <- uniformRM (0.75, 1.00) g
       eary   <- uniformRM (0.75, 1.00) g
-      skinh  <- uniformRM (270 , 390 ) g
+      skinh  <- uniformRM (210 , 450 ) g
       eyeh   <- uniformRM (0   , 360 ) g
       eyes   <- uniformRM (0.80, 1.00) g
       eyel   <- uniformRM (0.65, 1.00) g
