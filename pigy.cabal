@@ -13,7 +13,8 @@ extra-source-files: ReadMe.md
 
 executable pigy
   main-is         : Main.hs
-  other-modules   : Pigy.Image
+  other-modules   : Pigy.Chain
+                    Pigy.Image
   build-depends   : base >= 4.14 && < 4.15
                   , aeson
                   , aeson-pretty
