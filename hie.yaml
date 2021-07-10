@@ -1,8 +1,3 @@
 cradle:
   cabal:
-    - path: "./app/Main.hs"
-      component: "exe:pigy"
-    - path: "./app/Pigy/Chain.hs"
-      component: "exe:pigy"
-    - path: "./app/Pigy/Image.hs"
-      component: "exe:pigy"
+    component: "exe:pigy"

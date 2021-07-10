@@ -1,6 +1,8 @@
 
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 
 module Pigy.Chain (
@@ -8,48 +10,45 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api -- (AssetId(..), AsType(AsAssetName, AsPolicyId), BlockHeader(..), ConsensusModeParams(CardanoModeParams), EpochSlots(..), Network, Protocol, NetworkId(..), NetworkMagic(..), TxOut(..), TxOutValue(..), anyAddressInShelleyBasedEra, deserialiseFromRawBytes, deserialiseFromRawBytesHex, selectAsset, valueToList)
-import Control.Monad (when)
+import Cardano.Api -- (BlockHeader(..), TxOut(..), TxOutValue(..), selectAsset)
+import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.IORef
+import Data.IORef (modifyIORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (mapMaybe)
 import Mantis.Chain (watchTransactions)
-import Mantis.Types (MantisM, foistMantisMaybe)
-import Mantis.Transaction (printValueIO)
-import Mantis.Wallet (readAddress, showAddressMary)
+import Mantis.Query (submitTransaction)
+import Mantis.Script (mintingScript)
+import Mantis.Types (MantisM, foistMantisEither, printMantis, runMantisToIO)
+import Mantis.Transaction -- (printValueIO)
+import Mantis.Wallet (showAddressMary)
+import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
+import Pigy.Image (Chromosome, newChromosome)
+import Pigy.Types (Context(..), KeyedAddress(..))
 
-import qualified Data.ByteString.Char8 as BS (pack)
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map.Strict       as M
+import qualified Data.Text             as T
 
 
 pigy :: MonadFail m
      => MonadIO m
-     => FilePath
-     -> ConsensusModeParams CardanoMode
-     -> NetworkId
-     -> String
-     -> String
-     -> String
+     => Context
      -> MantisM m ()
-pigy socket protocol network myAddress policyId assetName =
+pigy context@Context{..} =
   do
-    activeRef <- liftIO $ newIORef False
-    sourceRef <- liftIO $ newIORef M.empty
-    myAddress' <- anyAddressInShelleyBasedEra <$> readAddress myAddress
-    policyId' <-
-      foistMantisMaybe "Could not decode policy ID."
-        . deserialiseFromRawBytesHex AsPolicyId
-        $ BS.pack policyId
-    assetName' <-
-      foistMantisMaybe "Could not decode asset name."
-        . deserialiseFromRawBytes AsAssetName
-        $ BS.pack assetName
+    activeRef  <- liftIO $ newIORef False
+    sourceRef  <- liftIO $ newIORef M.empty
+    pendingRef <- liftIO $ newIORef M.empty
     let
+      KeyedAddress{..} = keyedAddress
       idleHandler =
         do
+          putStrLn ""
+          putStrLn "Idle."
           writeIORef activeRef True
-          readIORef sourceRef >>= print
-          -- FIXME: Submit backlog of transactions.
+          pending <- readIORef pendingRef
+          mapM_ (uncurry createToken)
+            $ M.toList pending
           return False
       inHandler (BlockHeader slotNo _ _) txIn =
         do
@@ -57,29 +56,113 @@ pigy socket protocol network myAddress policyId assetName =
           when found
             $ do
               putStrLn ""
-              putStrLn $ "Spent: " ++ show txIn ++ " during " ++ show slotNo ++ "."
+              putStrLn $ show slotNo ++ ": spent " ++ show txIn
               modifyIORef sourceRef
                 (txIn `M.delete`)
-              readIORef sourceRef >>= print . M.keys
-      outHandler (BlockHeader slotNo _ _) txIns txIn (TxOut address txOutValue) =
+              modifyIORef pendingRef
+                (txIn `M.delete`)
+      outHandler _ inputs output (TxOut destination txOutValue) =
         case txOutValue of
           TxOutValue _ value -> 
-            when (selectAsset value (AssetId policyId' assetName') > 0)
+            when (selectAsset value token > 0)
               $ do
                 active <- readIORef activeRef
                 source <- readIORef sourceRef
-                let
-                  fromAddresses = mapMaybe (`M.lookup` source) txIns
-                putStrLn ""
-                print txIn
-                putStrLn $ "  active " ++ show active
-                putStrLn $ "  incoming " ++ show (showAddressMary <$> fromAddresses)
-                putStrLn $ "  mine " ++ show (address == myAddress')
-                putStrLn $ "  " ++ show slotNo
-                putStrLn $ "  " ++ showAddressMary address
-                printValueIO "  " value
+                -- Associate the output with the address used to fund it.
                 modifyIORef sourceRef
-                  $ M.insert txIn address
-                readIORef sourceRef >>= print . M.keys
+                  $ M.insert output destination
+                let
+                  -- Find all of the addresses used to fund this transaction.
+                  sources = mapMaybe (`M.lookup` source) inputs
+                putStrLn ""
+                putStrLn $ "Output: " ++ show output
+                putStrLn $ "  Sources: " ++ show (showAddressMary <$> sources)
+                putStrLn $ "  Destination: " ++ showAddressMary destination
+                putStrLn $ "  To me: " ++ show (destination == keyAddress)
+                printValueIO "  " value
+                when (destination == keyAddress && not (null sources))
+                  $ if active
+                      then createToken output (head sources, value)
+                      else do
+                             putStrLn "  Queued for creation."
+                             modifyIORef pendingRef
+                               $ M.insert output (head sources, value)
           _ -> return ()
+      createToken input (destination, value) =
+        do
+          putStrLn ""
+          putStrLn "Creating token."
+          putStrLn $ "  Input: " ++ show input
+          putStrLn $ "  Destination: " ++ showAddressMary destination
+          putStrLn $ "  To me: "++ show (destination == keyAddress)
+          putStrLn $ "  Value: " ++ show value
+          modifyIORef sourceRef
+            (input `M.delete`)
+          modifyIORef pendingRef
+            (input `M.delete`)
+          unless (destination == keyAddress)
+            $ do
+              result <- runMantisToIO $ mint context input destination value
+              case result of
+                Right chromosome -> putStrLn $ "  Created " ++ chromosome
+                Left  message    -> putStrLn $ "  " ++ message
     watchTransactions socket protocol network idleHandler inHandler outHandler
+
+
+mint :: MonadFail m
+     => MonadIO m
+     => Context
+     -> TxIn
+     -> AddressInEra MaryEra
+     -> Value
+     -> MantisM m Chromosome
+mint Context{..} txIn destination value =
+  do
+    chromosome <- liftIO $ newChromosome gRandom
+    let
+      KeyedAddress{..} = keyedAddress
+      (script, scriptHash) = mintingScript verificationHash Nothing
+      name = "PIG@" ++ chromosome
+      metadata =
+        TxMetadata
+          $ M.singleton 721
+          $ TxMetaMap
+            [
+              (
+                TxMetaText . serialiseToRawBytesHexText $ scriptHash
+              , TxMetaMap
+                [
+                  (
+                    TxMetaText $ T.pack name
+                  , TxMetaMap
+                    [
+                      (TxMetaText "name"       , TxMetaText . T.pack $ "PIG " ++ chromosome)
+--                  , (TxMetaText "description", TxMetaText ""                             )
+--                  , (TxMetaText "image"      , TxMetaText "ipfs://"                      )
+                    , (TxMetaText "chromosome" , TxMetaText $ T.pack chromosome            )
+                    ]
+                  )
+                ]
+              )
+            ]
+      minting = valueFromList [(AssetId (PolicyId scriptHash) (AssetName $ BS.pack name), 1)]
+      value' = value <> minting
+    txBody <- includeFee network pparams 1 1 1 0
+      $ makeTransaction 
+        [txIn]
+        [TxOut destination (TxOutValue supportedMultiAsset value')]
+        Nothing
+        (Just metadata)
+        Nothing
+        (Just minting)
+    txRaw <- foistMantisEither $ makeTransactionBody txBody
+    let
+      witness = makeShelleyKeyWitness txRaw
+        $ WitnessPaymentExtendedKey signing
+      witness' = makeScriptWitness script
+      txSigned = makeSignedTransaction [witness, witness'] txRaw
+    result <- submitTransaction socket protocol network txSigned
+    case result of
+      SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
+      SubmitFail reason -> printMantis $ "  Failure: " ++ show reason
+    return chromosome

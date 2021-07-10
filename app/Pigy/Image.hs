@@ -7,6 +7,7 @@ module Pigy.Image (
   Chromosome
 , fromChromosome
 , toChromosome
+, newChromosome
 , Genotype(..)
 , Phenotype(..)
 , toPhenotype
@@ -46,6 +47,12 @@ test =
 --  testCreate g
 --  testCrossover g
     testTree g
+
+
+newChromosome :: StatefulGen g IO
+              => g
+              -> IO Chromosome
+newChromosome = fmap toChromosome . uniformM
 
 
 testCreate :: StatefulGen g IO
