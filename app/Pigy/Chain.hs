@@ -144,10 +144,10 @@ mint Context{..} txIn destination value =
                  liftIO
                    $ if null pigs
                        then do
-                              putStrLn "New token."
+                              putStrLn "  New token."
                               newGenotype gRandom
                        else do
-                              putStrLn $ "Crossover token: " ++ show (BS.unpack <$> pigs)
+                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
                (chromosome, cid) <- liftIO $ pinImage ipfsEnv images genotype
                let
