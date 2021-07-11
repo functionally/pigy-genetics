@@ -10,7 +10,7 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, selectAsset, serialiseToRawBytesHexText, valueFromList)
+import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, selectAsset, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad                                     (unless, when)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
@@ -23,11 +23,11 @@ import Mantis.Types                                      (MantisM, foistMantisEi
 import Mantis.Transaction                                (includeFee, makeTransaction, printValueIO, supportedMultiAsset)
 import Mantis.Wallet                                     (showAddressMary)
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
-import Pigy.Image                                        (Chromosome, newGenotype)
+import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
 import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
-import qualified Data.ByteString.Char8 as BS (pack)
+import qualified Data.ByteString.Char8 as BS (drop, isPrefixOf, pack, unpack)
 import qualified Data.Map.Strict       as M  (delete, empty, insert, lookup, member, singleton, toList)
 import qualified Data.Text             as T  (pack)
 
@@ -107,8 +107,8 @@ pigy context@Context{..} =
             $ do
               result <- runMantisToIO $ mint context input destination value
               case result of
-                Right chromosome -> putStrLn $ "  Created " ++ chromosome
-                Left  message    -> putStrLn $ "  " ++ message
+                Right ()      -> return ()
+                Left  message -> putStrLn $ "  " ++ message
     watchTransactions socket protocol network idleHandler inHandler outHandler
 
 
@@ -118,44 +118,73 @@ mint :: MonadFail m
      -> TxIn
      -> AddressInEra MaryEra
      -> Value
-     -> MantisM m Chromosome
+     -> MantisM m ()
 mint Context{..} txIn destination value =
   do
-    genotype <- liftIO $ newGenotype gRandom
-    (chromosome, cid) <- liftIO $ pinImage ipfsEnv images genotype
     let
       KeyedAddress{..} = keyedAddress
       (script, scriptHash) = mintingScript verificationHash Nothing
-      name = "PIG@" ++ chromosome
-      metadata =
-        TxMetadata
-          $ M.singleton 721
-          $ TxMetaMap
-            [
-              (
-                TxMetaText . serialiseToRawBytesHexText $ scriptHash
-              , TxMetaMap
-                [
-                  (
-                    TxMetaText $ T.pack name
-                  , TxMetaMap
-                    [
-                      (TxMetaText "name"       , TxMetaText . T.pack $ "PIG " ++ chromosome)
-                    , (TxMetaText "image"      , TxMetaText $ "ipfs://" <> T.pack cid      )
-                    , (TxMetaText "chromosome" , TxMetaText $ T.pack chromosome            )
-                    ]
-                  )
-                ]
-              )
-            ]
-      minting = valueFromList [(AssetId (PolicyId scriptHash) (AssetName $ BS.pack name), 1)]
+      pigFilter (AssetId (PolicyId scriptHash') (AssetName name')) = scriptHash' == scriptHash && BS.isPrefixOf "PIG@" name'
+      pigFilter _ = False
+      pigs =
+        map (\(AssetId _ (AssetName name'), _) -> BS.drop 4 name')
+          . filter (pigFilter . fst)
+          $ valueToList value
+    (metadata, minting) <-
+      if length pigs == 1
+        then do
+               printMantis $ "  Burn token: " ++ BS.unpack (head pigs)
+               return
+                 (
+                   Nothing
+                 , negateValue $ filterValue pigFilter value
+                 )
+        else do
+               genotype <-
+                 liftIO
+                   $ if null pigs
+                       then do
+                              putStrLn "New token."
+                              newGenotype gRandom
+                       else do
+                              putStrLn $ "Crossover token: " ++ show (BS.unpack <$> pigs)
+                              crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
+               (chromosome, cid) <- liftIO $ pinImage ipfsEnv images genotype
+               let
+                 name = "PIG@" ++ chromosome
+               return
+                 (
+                   Just
+                     . TxMetadata
+                     . M.singleton 721
+                     $ TxMetaMap
+                       [
+                         (
+                           TxMetaText . serialiseToRawBytesHexText $ scriptHash
+                         , TxMetaMap
+                           [
+                             (
+                               TxMetaText $ T.pack name
+                             , TxMetaMap
+                               [
+                                 (TxMetaText "name"       , TxMetaText . T.pack $ "PIG " ++ chromosome)
+                               , (TxMetaText "image"      , TxMetaText $ "ipfs://" <> T.pack cid      )
+                               , (TxMetaText "chromosome" , TxMetaText $ T.pack chromosome            )
+                               ]
+                             )
+                           ]
+                         )
+                       ]
+                 , valueFromList [(AssetId (PolicyId scriptHash) (AssetName $ BS.pack name),  1)]
+                 )
+    let
       value' = value <> minting
     txBody <- includeFee network pparams 1 1 1 0
       $ makeTransaction 
         [txIn]
         [TxOut destination (TxOutValue supportedMultiAsset value')]
         Nothing
-        (Just metadata)
+        metadata
         Nothing
         (Just minting)
     txRaw <- foistMantisEither $ makeTransactionBody txBody
@@ -166,7 +195,5 @@ mint Context{..} txIn destination value =
       txSigned = makeSignedTransaction [witness, witness'] txRaw
     result <- submitTransaction socket protocol network txSigned
     case result of
-      SubmitSuccess     -> do
-                             printMantis $ "  Success: " ++ show (getTxId txRaw)
-                             return chromosome
-      SubmitFail reason -> throwError $ "  Failure: " ++ show reason
+      SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
+      SubmitFail reason -> throwError  $ "  Failure: " ++ show reason
