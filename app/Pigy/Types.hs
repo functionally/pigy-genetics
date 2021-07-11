@@ -13,14 +13,14 @@ module Pigy.Types (
 ) where
 
 
-import Cardano.Api (AddressInEra(..), AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, MaryEra, NetworkId(..), NetworkMagic(..), PaymentKey, PaymentExtendedKey, SigningKey, anyAddressInShelleyBasedEra, deserialiseFromRawBytes, deserialiseFromRawBytesHex)
-import Cardano.Api.Shelley (ProtocolParameters)
+import Cardano.Api            (AddressInEra(..), AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, MaryEra, NetworkId(..), NetworkMagic(..), PaymentKey, PaymentExtendedKey, SigningKey, anyAddressInShelleyBasedEra, deserialiseFromRawBytes, deserialiseFromRawBytesHex)
+import Cardano.Api.Shelley    (ProtocolParameters)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Word (Word32, Word64)
-import Mantis.Query (queryProtocol)
-import Mantis.Types (MantisM, foistMantisMaybe)
-import Mantis.Wallet (SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
-import System.Random (StdGen, getStdGen)
+import Data.Word              (Word32, Word64)
+import Mantis.Query           (queryProtocol)
+import Mantis.Types           (MantisM, foistMantisMaybe)
+import Mantis.Wallet          (SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
+import System.Random          (StdGen, getStdGen)
 import System.Random.Stateful (IOGenM, newIOGenM)
 
 import qualified Data.ByteString.Char8 as BS (pack)
@@ -29,12 +29,15 @@ import qualified Data.ByteString.Char8 as BS (pack)
 data Configuration =
   Configuration
   {
-    socketPath :: FilePath
-  , magic      :: Maybe Word32
-  , epochSlots :: Word64
-  , policyId   :: String
-  , assetName  :: String
-  , keyInfo    :: KeyInfo
+    socketPath      :: FilePath
+  , magic           :: Maybe Word32
+  , epochSlots      :: Word64
+  , policyId        :: String
+  , assetName       :: String
+  , keyInfo         :: KeyInfo
+  , ipfsEnvironment :: [(String, String)]
+  , ipfsService     :: String
+  , imageFolder     :: FilePath
   }
     deriving (Read, Show)
 
@@ -59,6 +62,8 @@ data Context =
   , token        :: AssetId
   , keyedAddress :: KeyedAddress
   , gRandom      :: IOGenM StdGen
+  , ipfsEnv      :: (String, [(String, String)])
+  , images       :: FilePath
   }
 
 
@@ -100,6 +105,8 @@ makeContext Configuration{..} =
       protocol = CardanoModeParams $ EpochSlots epochSlots
       network = maybe Mainnet (Testnet . NetworkMagic) magic
       token = AssetId policyId' assetName'
+      ipfsEnv = (ipfsService, ipfsEnvironment)
+      images = imageFolder
     pparams <- queryProtocol socketPath protocol network
     return Context{..}
 

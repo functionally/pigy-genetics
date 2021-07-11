@@ -10,24 +10,26 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api -- (BlockHeader(..), TxOut(..), TxOutValue(..), selectAsset)
-import Control.Monad (unless, when)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.IORef (modifyIORef, newIORef, readIORef, writeIORef)
-import Data.Maybe (mapMaybe)
-import Mantis.Chain (watchTransactions)
-import Mantis.Query (submitTransaction)
-import Mantis.Script (mintingScript)
-import Mantis.Types (MantisM, foistMantisEither, printMantis, runMantisToIO)
-import Mantis.Transaction -- (printValueIO)
-import Mantis.Wallet (showAddressMary)
+import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, selectAsset, serialiseToRawBytesHexText, valueFromList)
+import Control.Monad                                     (unless, when)
+import Control.Monad.Error.Class                         (throwError)
+import Control.Monad.IO.Class                            (MonadIO, liftIO)
+import Data.IORef                                        (modifyIORef, newIORef, readIORef, writeIORef)
+import Data.Maybe                                        (mapMaybe)
+import Mantis.Chain                                      (watchTransactions)
+import Mantis.Query                                      (submitTransaction)
+import Mantis.Script                                     (mintingScript)
+import Mantis.Types                                      (MantisM, foistMantisEither, printMantis, runMantisToIO)
+import Mantis.Transaction                                (includeFee, makeTransaction, printValueIO, supportedMultiAsset)
+import Mantis.Wallet                                     (showAddressMary)
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
-import Pigy.Image (Chromosome, newChromosome)
-import Pigy.Types (Context(..), KeyedAddress(..))
+import Pigy.Image                                        (Chromosome, newGenotype)
+import Pigy.Ipfs                                         (pinImage)
+import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.Map.Strict       as M
-import qualified Data.Text             as T
+import qualified Data.ByteString.Char8 as BS (pack)
+import qualified Data.Map.Strict       as M  (delete, empty, insert, lookup, member, singleton, toList)
+import qualified Data.Text             as T  (pack)
 
 
 pigy :: MonadFail m
@@ -43,9 +45,12 @@ pigy context@Context{..} =
       KeyedAddress{..} = keyedAddress
       idleHandler =
         do
-          putStrLn ""
-          putStrLn "Idle."
-          writeIORef activeRef True
+          active <- readIORef activeRef
+          unless active
+            $ do
+              putStrLn ""
+              putStrLn "First idling."
+              writeIORef activeRef True
           pending <- readIORef pendingRef
           mapM_ (uncurry createToken)
             $ M.toList pending
@@ -68,11 +73,9 @@ pigy context@Context{..} =
               $ do
                 active <- readIORef activeRef
                 source <- readIORef sourceRef
-                -- Associate the output with the address used to fund it.
                 modifyIORef sourceRef
                   $ M.insert output destination
                 let
-                  -- Find all of the addresses used to fund this transaction.
                   sources = mapMaybe (`M.lookup` source) inputs
                 putStrLn ""
                 putStrLn $ "Output: " ++ show output
@@ -118,7 +121,8 @@ mint :: MonadFail m
      -> MantisM m Chromosome
 mint Context{..} txIn destination value =
   do
-    chromosome <- liftIO $ newChromosome gRandom
+    genotype <- liftIO $ newGenotype gRandom
+    (chromosome, cid) <- liftIO $ pinImage ipfsEnv images genotype
     let
       KeyedAddress{..} = keyedAddress
       (script, scriptHash) = mintingScript verificationHash Nothing
@@ -137,8 +141,7 @@ mint Context{..} txIn destination value =
                   , TxMetaMap
                     [
                       (TxMetaText "name"       , TxMetaText . T.pack $ "PIG " ++ chromosome)
---                  , (TxMetaText "description", TxMetaText ""                             )
---                  , (TxMetaText "image"      , TxMetaText "ipfs://"                      )
+                    , (TxMetaText "image"      , TxMetaText $ "ipfs://" <> T.pack cid      )
                     , (TxMetaText "chromosome" , TxMetaText $ T.pack chromosome            )
                     ]
                   )
@@ -163,6 +166,7 @@ mint Context{..} txIn destination value =
       txSigned = makeSignedTransaction [witness, witness'] txRaw
     result <- submitTransaction socket protocol network txSigned
     case result of
-      SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
-      SubmitFail reason -> printMantis $ "  Failure: " ++ show reason
-    return chromosome
+      SubmitSuccess     -> do
+                             printMantis $ "  Success: " ++ show (getTxId txRaw)
+                             return chromosome
+      SubmitFail reason -> throwError $ "  Failure: " ++ show reason

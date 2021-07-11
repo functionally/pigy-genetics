@@ -7,11 +7,12 @@ module Pigy.Image (
   Chromosome
 , fromChromosome
 , toChromosome
-, newChromosome
+, newGenotype
 , Genotype(..)
 , Phenotype(..)
 , toPhenotype
 , toImage
+, toPngBytes
 , writeImage
 , crossover
 , test
@@ -20,23 +21,23 @@ module Pigy.Image (
 , testTree
 ) where
 
-import Codec.Picture(PixelRGBA8(..), writePng)
-import Codec.Picture.Types (Image)
-import Control.Monad (replicateM)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Binary (Binary(..), decode, encode)
-import Data.Colour.RGBSpace.HSL (hsl, hslView)
-import Data.Colour.SRGB (RGB(..))
-import Data.Word (Word8)
-import Graphics.Rasterific (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
-import Graphics.Rasterific.Texture (uniformTexture)
+import Codec.Picture                       (PixelRGBA8(..), encodePng, writePng)
+import Codec.Picture.Types                 (Image)
+import Control.Monad                       (replicateM)
+import Control.Monad.IO.Class              (MonadIO, liftIO)
+import Data.Binary                         (Binary(..), decode, encode)
+import Data.Colour.RGBSpace.HSL            (hsl, hslView)
+import Data.Colour.SRGB                    (RGB(..))
+import Data.Word                           (Word8)
+import Graphics.Rasterific                 (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
+import Graphics.Rasterific.Texture         (uniformTexture)
 import Graphics.Rasterific.Transformations (scale, translate)
-import System.Random (Uniform, getStdGen)
-import System.Random.Internal (uniformM, uniformRM)
-import System.Random.Stateful (StatefulGen, newIOGenM, uniformListM)
+import System.Random                       (Uniform, getStdGen)
+import System.Random.Internal              (uniformM, uniformRM)
+import System.Random.Stateful              (StatefulGen, newIOGenM)
 
 import qualified Data.ByteString        as BS     (pack, unpack)
-import qualified Data.ByteString.Lazy   as LBS    (fromStrict, toStrict)
+import qualified Data.ByteString.Lazy   as LBS    (ByteString, fromStrict, toStrict)
 import qualified Data.ByteString.Base58 as Base58 (bitcoinAlphabet, decodeBase58, encodeBase58)
 
 
@@ -49,10 +50,10 @@ test =
     testTree g
 
 
-newChromosome :: StatefulGen g IO
-              => g
-              -> IO Chromosome
-newChromosome = fmap toChromosome . uniformM
+newGenotype :: StatefulGen g IO
+            => g
+            -> IO Genotype
+newGenotype = uniformM
 
 
 testCreate :: StatefulGen g IO
@@ -84,7 +85,7 @@ testCrossover g =
   do
     parent  <- uniformM g
     parent' <- uniformM g
-    offspring <- crossover g parent parent'
+    offspring <- crossover g [parent, parent']
     putStrLn ""
     putStrLn $ "Parent 1: " ++ show parent
     putStrLn ""
@@ -120,7 +121,7 @@ testTree g =
       sequence
         [
           do
-            child <- crossover g parent1 parent2
+            child <- crossover g [parent1, parent2]
             let
               tag      =  toChromosome child
               filename = "pigy-" ++ tag ++ ".png"
@@ -139,7 +140,7 @@ testTree g =
       sequence
         [
           do
-            child <- crossover g parent1 parent2
+            child <- crossover g [parent1, parent2]
             let
               tag      =  toChromosome child
               filename = "pigy-" ++ tag ++ ".png"
@@ -157,7 +158,7 @@ testTree g =
     sequence_
       [
         do
-          child <- crossover g parent1 parent2
+          child <- crossover g [parent1, parent2]
           let
             tag      =  toChromosome child
             filename = "pigy-" ++ tag ++ ".png"
@@ -303,37 +304,38 @@ instance Uniform Genotype where
 crossover :: MonadFail m
           => StatefulGen g m
           => g
-          -> Genotype
-          -> Genotype
+          -> [Genotype]
           -> m Genotype
-crossover g x y =
+crossover g genotypes =
   do
-    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- uniformListM 22 g
+    let
+      n = length genotypes
+    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- replicateM 22 $ uniformRM (0, n-1) g
     return
       $ Genotype
       {
-        ar      = if ar'     then ar     x else ar     y      
-      , headx   = if headx'  then headx  x else headx  y      
-      , heady   = if heady'  then heady  x else heady  y      
-      , eyex    = if eyex'   then eyex   x else eyex   y      
-      , eyey    = if eyey'   then eyey   x else eyey   y      
-      , nosex   = if nosex'  then nosex  x else nosex  y      
-      , nosey   = if nosey'  then nosey  x else nosey  y      
-      , earx    = if earx'   then earx   x else earx   y      
-      , eary    = if eary'   then eary   x else eary   y      
-      , torso   = if torso'  then torso  x else torso  y      
-      , skinh   = if skinh'  then skinh  x else skinh  y      
-      , eyeh    = if eyeh'   then eyeh   x else eyeh   y      
-      , eyes    = if eyes'   then eyes   x else eyes   y      
-      , eyel    = if eyel'   then eyel   x else eyel   y      
-      , pupilh  = if pupilh' then pupilh x else pupilh y      
-      , pupils  = if pupils' then pupils x else pupils y      
-      , pupill  = if pupill' then pupill x else pupill y      
-      , noseh   = if noseh'  then noseh  x else noseh  y      
-      , noses   = if noses'  then noses  x else noses  y      
-      , nosel   = if nosel'  then nosel  x else nosel  y      
-      , eyea    = if eyea'   then eyea   x else eyea   y      
-      , eyef    = if eyef'   then eyef   x else eyef   y      
+        ar      = ar     $ genotypes !! ar'    
+      , headx   = headx  $ genotypes !! headx' 
+      , heady   = heady  $ genotypes !! heady' 
+      , eyex    = eyex   $ genotypes !! eyex'  
+      , eyey    = eyey   $ genotypes !! eyey'  
+      , nosex   = nosex  $ genotypes !! nosex' 
+      , nosey   = nosey  $ genotypes !! nosey' 
+      , earx    = earx   $ genotypes !! earx'  
+      , eary    = eary   $ genotypes !! eary'  
+      , torso   = torso  $ genotypes !! torso' 
+      , skinh   = skinh  $ genotypes !! skinh' 
+      , eyeh    = eyeh   $ genotypes !! eyeh'  
+      , eyes    = eyes   $ genotypes !! eyes'  
+      , eyel    = eyel   $ genotypes !! eyel'  
+      , pupilh  = pupilh $ genotypes !! pupilh'
+      , pupils  = pupils $ genotypes !! pupils'
+      , pupill  = pupill $ genotypes !! pupill'
+      , noseh   = noseh  $ genotypes !! noseh' 
+      , noses   = noses  $ genotypes !! noses' 
+      , nosel   = nosel  $ genotypes !! nosel' 
+      , eyea    = eyea   $ genotypes !! eyea'  
+      , eyef    = eyef   $ genotypes !! eyef'  
       }
 
 
@@ -380,6 +382,11 @@ toPhenotype Genotype{..} =
     eyeFraction = eyef
   in
     Phenotype{..}
+
+
+toPngBytes :: Phenotype
+           -> LBS.ByteString
+toPngBytes = encodePng . toImage
 
 
 writeImage :: MonadIO m

@@ -1,7 +1,7 @@
 cabal-version: >= 1.10
 
 name              : pigy
-description       : This tool provides several script-oriented utilities for the Cardano blockchain. In particular, it posts metadata or mints/burns tokens. It can also generate scripts, compute script addresses, compute the fingerprint of a token, and download scripts.
+description       : Service for PIGY token genetics.
 version           : 0.1.0.0
 license           : MIT
 license-file      : LICENSE
@@ -9,39 +9,29 @@ author            : Brian W Bush
 maintainer        : code@functionally.io
 category          : Network
 build-type        : Simple
-extra-source-files: ReadMe.md
 
 executable pigy
   main-is         : Main.hs
   other-modules   : Pigy.Chain
                     Pigy.Image
+                    Pigy.Ipfs
                     Pigy.Types
   build-depends   : base >= 4.14 && < 4.15
-                  , aeson
-                  , aeson-pretty
-                  , base16-bytestring
                   , base58-bytestring
-                  , bech32
                   , binary
                   , bytestring
                   , cardano-api
                   , colour
+                  , command
                   , containers
-                  , cryptonite
-                  , extra
                   , filepath
                   , JuicyPixels
                   , mantis
-                  , memory
                   , mtl
-                  , optparse-applicative
                   , ouroboros-network
                   , random
                   , Rasterific
                   , text
-                  , transformers
-                  , transformers-except
-                  , unordered-containers
   hs-source-dirs  : app
   default-language: Haskell2010
   ghc-options     : -Wall
