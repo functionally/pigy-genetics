@@ -1,6 +1,6 @@
 cabal-version: >= 1.10
 
-name              : pigy
+name              : pigy-genetics
 description       : Service for PIGY token genetics.
 version           : 0.1.0.0
 license           : MIT
@@ -10,7 +10,7 @@ maintainer        : code@functionally.io
 category          : Network
 build-type        : Simple
 
-executable pigy
+executable pigy-genetics
   main-is         : Main.hs
   other-modules   : Pigy.Chain
                     Pigy.Image

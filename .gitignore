@@ -3,3 +3,11 @@ tmp/
 *.log
 *.sw?
 dist-newstyle/
+pages/images/
+*.skey
+*.vkey
+*.address
+*.gpg
+*.socket
+*.pigy-genetics
+build
