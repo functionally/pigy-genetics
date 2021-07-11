@@ -30,10 +30,17 @@ pinImage (remote, environment) folder genotype =
             [Env environment]
             "ipfs"
             ["add", "--quieter", "--pin=false", filename]
-    () <-
-      command
+    result <-
+      init . fromStdout
+        <$> command
         [Env environment]
         "ipfs"
         ["pin", "remote", "add", "--service=" ++ remote, "--name=PIG@" ++ chromosome, cid]
+    sequence_
+      [
+        putStrLn $ "  " ++ line
+      |
+        line <- lines result
+      ]
     return (chromosome, cid)
     

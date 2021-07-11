@@ -167,9 +167,11 @@ mint Context{..} txIn destination value =
                                TxMetaText $ T.pack name
                              , TxMetaMap
                                [
-                                 (TxMetaText "name"       , TxMetaText . T.pack $ "PIG " ++ chromosome)
-                               , (TxMetaText "image"      , TxMetaText $ "ipfs://" <> T.pack cid      )
-                               , (TxMetaText "chromosome" , TxMetaText $ T.pack chromosome            )
+                                 (TxMetaText "name"      , TxMetaText . T.pack $ "PIG " ++ chromosome                         )
+                               , (TxMetaText "image"     , TxMetaText $ "ipfs://" <> T.pack cid                               )
+                               , (TxMetaText "ticker"    , TxMetaText $ T.pack name                                           )
+                               , (TxMetaText "parents"   , TxMetaList $ TxMetaText . T.pack . ("PIG@" ++) . BS.unpack <$> pigs)
+                               , (TxMetaText "url"       , TxMetaText "https://pigy.functionally.live"                        )
                                ]
                              )
                            ]
