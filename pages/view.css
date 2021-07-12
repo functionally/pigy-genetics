@@ -1,0 +1,94 @@
+
+
+#rules-table th[colspan] {
+  text-align: center
+; font-style: italic
+}
+
+#rules-table th[rowspan] {
+  vertical-align: bottom
+}
+
+#rules-table th, #rules-table td {
+  vertical-align: top
+}
+
+table {
+  border-style   : solid
+; border-width   : thin
+; border-collapse: collapse
+}
+
+
+#examples-table td[colspan] {
+  text-align: center
+}
+
+#examples-table td:nth-of-type(3) img {
+  display     : block
+; margin-left : auto
+; margin-right: auto
+}
+
+#examples-table td:nth-of-type(4) img {
+  width         : 20vw
+; display       : block
+; margin-top    : auto
+; margin-bottom : auto
+; vertical-align: center
+}
+
+#example-minting img {
+  width: 40vw
+}
+
+#example-blending img {
+  width: 45.15vw
+}
+
+#example-burning img {
+  width: 35.96vw
+}
+
+#navigation span {
+  color  : white
+; background-color: lightgray
+; padding-top     : 0.3em
+; padding-bottom  : 0.3em
+; padding-left    : 1em
+; padding-right   : 1em
+}
+
+#navigation span a {
+  text-decoration: none
+; color          : black
+}
+
+
+#experimental, #rules-table tfoot {
+  color     : red
+}
+
+
+#example-genetics {
+  position: float
+; top     : 0
+; float   : right
+; width   : 300px
+}
+
+
+th, td {
+  text-align     : left
+; border-style   : solid
+; border-width   : thin
+; padding        : 4px
+}
+
+a {
+  text-decoration: none
+}
+
+body {
+  font-family: sans-serif
+}

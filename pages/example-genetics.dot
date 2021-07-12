@@ -1,0 +1,32 @@
+digraph pigy {
+
+rankdir=LR
+
+PIG_rbkZDq9vBb63AvY [label="PIG@rbkZDq9vBb63AvY" labelloc="t" shape=box image="images/PIG@rbkZDq9vBb63AvY.png"]
+PIG_vhoZ8kwPwS8cbBL [label="PIG@vhoZ8kwPwS8cbBL" labelloc="t" shape=box image="images/PIG@vhoZ8kwPwS8cbBL.png"]
+PIG_Z7okXK5RWj79vr4 [label="PIG@Z7okXK5RWj79vr4" labelloc="t" shape=box image="images/PIG@Z7okXK5RWj79vr4.png"]
+PIG_GKJB4GA8wa6FSbu [label="PIG@GKJB4GA8wa6FSbu" labelloc="t" shape=box image="images/PIG@GKJB4GA8wa6FSbu.png"]
+PIG_rnUwPTeCq449ScB [label="PIG@rnUwPTeCq449ScB" labelloc="t" shape=box image="images/PIG@rnUwPTeCq449ScB.png"]
+PIG_txE73CZMM5xiqMQ [label="PIG@txE73CZMM5xiqMQ" labelloc="t" shape=box image="images/PIG@txE73CZMM5xiqMQ.png"]
+PIG_txDVvjzBMvBqKE3 [label="PIG@txDVvjzBMvBqKE3" labelloc="t" shape=box image="images/PIG@txDVvjzBMvBqKE3.png"]
+PIG_F5PEepBgz8Zczuh [label="PIG@F5PEepBgz8Zczuh" labelloc="t" shape=box image="images/PIG@F5PEepBgz8Zczuh.png"]
+PIG_F1r26pPjWx3zWkK [label="PIG@F1r26pPjWx3zWkK" labelloc="t" shape=box image="images/PIG@F1r26pPjWx3zWkK.png"]
+
+PIG_GKJB4GA8wa6FSbu -> PIG_rnUwPTeCq449ScB
+PIG_rbkZDq9vBb63AvY -> PIG_rnUwPTeCq449ScB
+
+PIG_Z7okXK5RWj79vr4 -> PIG_txE73CZMM5xiqMQ
+PIG_vhoZ8kwPwS8cbBL -> PIG_txE73CZMM5xiqMQ
+
+PIG_rnUwPTeCq449ScB -> PIG_txDVvjzBMvBqKE3
+PIG_txE73CZMM5xiqMQ -> PIG_txDVvjzBMvBqKE3
+
+PIG_GKJB4GA8wa6FSbu -> PIG_F5PEepBgz8Zczuh
+PIG_rnUwPTeCq449ScB -> PIG_F5PEepBgz8Zczuh
+
+PIG_F5PEepBgz8Zczuh -> PIG_F1r26pPjWx3zWkK
+PIG_Z7okXK5RWj79vr4 -> PIG_F1r26pPjWx3zWkK
+
+PIG_txE73CZMM5xiqMQ -> burned
+
+}
