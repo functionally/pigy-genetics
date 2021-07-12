@@ -11,6 +11,7 @@ PIG_txE73CZMM5xiqMQ [label="PIG@txE73CZMM5xiqMQ" labelloc="t" shape=box image="i
 PIG_txDVvjzBMvBqKE3 [label="PIG@txDVvjzBMvBqKE3" labelloc="t" shape=box image="images/PIG@txDVvjzBMvBqKE3.png"]
 PIG_F5PEepBgz8Zczuh [label="PIG@F5PEepBgz8Zczuh" labelloc="t" shape=box image="images/PIG@F5PEepBgz8Zczuh.png"]
 PIG_F1r26pPjWx3zWkK [label="PIG@F1r26pPjWx3zWkK" labelloc="t" shape=box image="images/PIG@F1r26pPjWx3zWkK.png"]
+PIG_riy54ftzEdouzR2 [label="PIG@riy54ftzEdouzR2" labelloc="t" shape=box image="images/PIG@riy54ftzEdouzR2.png"]
 
 PIG_GKJB4GA8wa6FSbu -> PIG_rnUwPTeCq449ScB
 PIG_rbkZDq9vBb63AvY -> PIG_rnUwPTeCq449ScB
@@ -28,5 +29,8 @@ PIG_F5PEepBgz8Zczuh -> PIG_F1r26pPjWx3zWkK
 PIG_Z7okXK5RWj79vr4 -> PIG_F1r26pPjWx3zWkK
 
 PIG_txE73CZMM5xiqMQ -> burned
+
+PIG_rbkZDq9vBb63AvY -> PIG_riy54ftzEdouzR2
+PIG_Z7okXK5RWj79vr4 -> PIG_riy54ftzEdouzR2
 
 }
