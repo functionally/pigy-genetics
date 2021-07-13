@@ -8,39 +8,47 @@ module Pigy.Ipfs (
 ) where
 
 
-import Pigy.Image            (Chromosome, Genotype, toChromosome, toPhenotype, writeImage)
-import System.Command        (CmdOption(Env), Stdout(..), command)
-import System.FilePath.Posix ((</>), (<.>))
+import Control.Monad.IO.Class    (MonadIO)
+import Development.Shake.Command (CmdOption(Env), Exit(..), Stderr(..), Stdout(..), cmd)
+import Mantis.Types              (MantisM, foistMantisEitherIO)
+import Pigy.Image                (Chromosome, Genotype, toChromosome, toPhenotype, writeImage)
+import System.FilePath.Posix     ((</>), (<.>))
+import System.Exit               (ExitCode(..))
 
 
-pinImage :: (String, [(String, String)])
+pinImage :: MonadIO m
+         => (String, [(String, String)])
          -> FilePath
          -> Genotype
-         -> IO (Chromosome, String)
+         -> MantisM m (Chromosome, String)
 pinImage (remote, environment) folder genotype =
-  do
-    -- FIXME: Catch errors in `MantisM`.
-    let
-      chromosome = toChromosome genotype
-      filename = folder </> "PIG@" <> chromosome <.> "png"
-    writeImage filename $ toPhenotype genotype
-    cid <-
-      init . fromStdout
-        <$> command
-            [Env environment]
-            "ipfs"
-            ["add", "--quieter", "--pin=false", filename]
-    result <-
-      init . fromStdout
-        <$> command
-        [Env environment]
-        "ipfs"
-        ["pin", "remote", "add", "--service=" ++ remote, "--name=PIG@" ++ chromosome, cid]
-    sequence_
-      [
-        putStrLn $ "  " ++ line
-      |
-        line <- lines result
-      ]
-    return (chromosome, cid)
-    
+  foistMantisEitherIO
+    $ do
+      let
+        chromosome = toChromosome genotype
+        filename = folder </> "PIG@" <> chromosome <.> "png"
+      writeImage filename $ toPhenotype genotype
+      (Exit code, Stdout cid', Stderr msg) <-
+        cmd
+          [Env environment]
+          "ipfs"
+          ["add", "--quieter", "--pin=false", filename]
+      case code of
+        ExitFailure _ -> return $ Left (msg :: String)
+        ExitSuccess   -> do
+                           let cid = init cid'
+                           (Exit code', Stdout result, Stderr msg') <-
+                             cmd
+                               [Env environment]
+                               "ipfs"
+                               ["pin", "remote", "add", "--service=" ++ remote, "--name=PIG@" ++ chromosome, cid]
+                           case code' of
+                             ExitFailure _ -> return $ Left (msg' :: String)
+                             ExitSuccess   -> do
+                                                sequence_
+                                                  [
+                                                    putStrLn $ "  " ++ line
+                                                  |
+                                                    line <- lines result
+                                                  ]
+                                                return $ Right (chromosome, cid)

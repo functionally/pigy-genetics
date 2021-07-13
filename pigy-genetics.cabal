@@ -22,7 +22,6 @@ executable pigy-genetics
                   , bytestring
                   , cardano-api
                   , colour
-                  , command
                   , containers
                   , filepath
                   , JuicyPixels
@@ -31,6 +30,7 @@ executable pigy-genetics
                   , ouroboros-network
                   , random
                   , Rasterific
+                  , shake
                   , text
   hs-source-dirs  : app
   default-language: Haskell2010
