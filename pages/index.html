@@ -1,6 +1,6 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US" lang="en-US">
-  <head profile="http://www.w3.org/2005/10/profile">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US" lang="en-US">                                            
+  <head profile="http://www.w3.org/2005/10/profile">                                                      
   <!--link rel="icon" type="image/vnd.microsoft.icon" href="/favicon.ico"/-->
   <link href="view.css" type="text/css" rel="stylesheet"/>
   <title>Genetics Game for Pig Images</title>
@@ -16,11 +16,12 @@
       <span><a href="#disclaimer">disclaimer</a></span>
       <span><a href="#contact">contact</a></span>
     </div>
-    <p id="experimental"><strong>Experimental, pre-Alpha version:</strong> <em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this experimental service.</em></p>
+    <p id="experimental"><strong>Experimental, pre-alpha version:</strong> <em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this experimental service.</em></p>
     <p>This game on the Cardano blockchain is a simple image-generating service that is powered by the the <a target="pigy-genetics" href="https://www.pigytoken.com">PIGY Token</a>. Sending the PIGY Token and ADA to the address below will either mint, blend, or burn Cardano native tokens, each with a customized image of a pig.</p>
     <p>The images can be viewed by visiting the IPFS link in the minting metadata for the token, or by visiting a token-viewing explorer such as <a target="pigy-genetics" href="https://pool.pm/tokens">pool.pm/tokens</a>.</p>
     <p>The image-blending process randomly combines attributes of the "parent" images to create a new "child" image. Carefully chosen blending strategies can produce "offspring" with particular target characteristics. The diagram to the right shows the "family tree" for the first ten pig image tokens created using this service.</p>
     <p>Work is in progress to add facial expression, clothing, jewelry, badges, and other accoutrement to the pig images. Eventually, this service will be migrated to a smart contract.</p>
+    <p><strong>Please post suggestions or problems <a target="pigy-genetics" href="https://github.com/functionally/pigy-genetics/issues">here</a>.</strong></p>
     <hr/>
     <h2 id="examples">Examples</h2>
     <table id="examples-table">
@@ -29,7 +30,7 @@
           <td>Minting</td>
           <td>Send 2.0 ADA and 1 PIGY to the address below, and soon receive back a new pig image token, along with the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/2a61666d218fa9c94aecb334318fc283b1ed32389fe6ac2450f981aa4f50b74a">here</a>.</td>
           <td id="example-minting"><a target="pigy-genetics" href="example-minting.png"><img src="example-minting.png"/></a></td>
-          <td rowspan="3"><img src="addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd.png"/></td>
+          <td rowspan="3"><a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><img src="addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd.png"/></a></td>
         </tr>
         <tr>
           <td>Blending</td>
@@ -44,7 +45,7 @@
           <td></td>
         </tr>
         <tr>
-          <td colspan="4"><code>addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd</code></td>
+          <td colspan="4"><a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><code>addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd</code></a></td>
         </tr>
       </tbody>
     </table>
@@ -125,7 +126,7 @@
       <li>The PIGY Token is Asset ID <a target="pigy-genetics" href="https://cardanoscan.io/token/2aa9c1557fcf8e7caa049fa0911a8724a1cdaf8037fe0b431c6ac66450494759546f6b656e"><code>asset1p86u64tt2cjlmtlw5y8s3tz5hae08ged6ej0eq</code></a>.</li>
       <li>The pig image tokens are minted under Policy ID <a target="pigy-genetics" href="https://cardanoscan.io/tokenPolicy/cbf096ed812bdafc8b000886cf7b1ccd4e430e78dc579c7f25a155d3"><code>cbf096ed812bdafc8b000886cf7b1ccd4e430e78dc579c7f25a155d3</code></a>.</li>
       <li>The pig image tokens <em>are not NFTs</em>. In particular (and by design), when blending tokens, there is some chance to create an "identical twin" of a previous pig image token.</li>
-      <li>The source code for this service is available <a target="pigy-genetics" href="https://bitbucket.org/functionally/pigy-genetics/src/main/ReadMe.md">here</a>.</li>
+      <li>The source code for this service is available <a target="pigy-genetics" href="https://github.com/functionally/pigy-genetics/src/main/ReadMe.md">here</a>.</li>
     </ul>
     <hr/>
     <h2 id="disclaimer">Disclaimer</h2>
