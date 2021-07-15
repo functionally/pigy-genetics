@@ -11,7 +11,8 @@ module Pigy.Ipfs (
 import Control.Monad.IO.Class    (MonadIO)
 import Development.Shake.Command (CmdOption(Env), Exit(..), Stderr(..), Stdout(..), cmd)
 import Mantis.Types              (MantisM, foistMantisEitherIO)
-import Pigy.Image                (Chromosome, Genotype, toChromosome, toPhenotype, writeImage)
+import Pigy.Image                (Genotype, toChromosome, writeImage)
+import Pigy.Image.Types          (Chromosome, Phenable(..))
 import System.FilePath.Posix     ((</>), (<.>))
 import System.Exit               (ExitCode(..))
 

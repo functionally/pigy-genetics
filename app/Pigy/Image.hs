@@ -1,182 +1,78 @@
 
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 
 module Pigy.Image (
-  Chromosome
-, fromChromosome
+  fromChromosome
 , toChromosome
 , newGenotype
 , Genotype(..)
-, Phenotype(..)
-, toPhenotype
 , toImage
 , toPngBytes
 , writeImage
 , crossover
-, test
-, testCreate
-, testCrossover
-, testTree
 ) where
 
 import Codec.Picture                       (PixelRGBA8(..), encodePng, writePng)
 import Codec.Picture.Types                 (Image)
-import Control.Monad                       (replicateM)
 import Control.Monad.IO.Class              (MonadIO, liftIO)
-import Data.Binary                         (Binary(..), decode, encode)
-import Data.Colour.RGBSpace.HSL            (hsl, hslView)
+import Data.Binary                         (Binary(..), Get, decode, encode)
+import Data.Colour.RGBSpace.HSL            (hsl)
 import Data.Colour.SRGB                    (RGB(..))
 import Data.Word                           (Word8)
 import Graphics.Rasterific                 (Cap(..), Drawing, Join(..), Texture, V2(..), circle, cubicBezierFromPath, fill, line, renderDrawing, roundedRectangle, stroke, withClipping, withTexture, withTransformation)
 import Graphics.Rasterific.Texture         (uniformTexture)
 import Graphics.Rasterific.Transformations (scale, translate)
-import System.Random                       (Uniform, getStdGen)
-import System.Random.Internal              (uniformM, uniformRM)
-import System.Random.Stateful              (StatefulGen, newIOGenM)
+import Pigy.Image.Types                    (Chromosome, Phenable(..), Phenotype(..), Upgradeable(..))
+import System.Random                       (Uniform)
+import System.Random.Internal              (uniformM)
+import System.Random.Stateful              (StatefulGen)
 
 import qualified Data.ByteString        as BS     (pack, unpack)
 import qualified Data.ByteString.Lazy   as LBS    (ByteString, fromStrict, toStrict)
 import qualified Data.ByteString.Base58 as Base58 (bitcoinAlphabet, decodeBase58, encodeBase58)
+import qualified Pigy.Image.V0          as V0     (Genotype, gid)
+import qualified Pigy.Image.V1          as V1     (Genotype, crossover, gid)
 
 
-test :: IO ()
-test =
-  do
-    g <- newIOGenM =<< getStdGen
---  testCreate g
---  testCrossover g
-    testTree g
+data Genotype =
+    GenotypeV0 V0.Genotype
+  | GenotypeV1 V1.Genotype
+    deriving (Eq, Ord, Show)
+
+instance Upgradeable Genotype Genotype where
+  upgrade (GenotypeV0 g) = GenotypeV1 $ upgrade g
+  upgrade (GenotypeV1 g) = GenotypeV1 g
+
+instance Upgradeable Genotype V1.Genotype where
+  upgrade (GenotypeV0 g) = upgrade g
+  upgrade (GenotypeV1 g) = g
+
+instance Phenable Genotype where
+  toPhenotype (GenotypeV0 g) = toPhenotype g
+  toPhenotype (GenotypeV1 g) = toPhenotype g
+
+instance Binary Genotype where
+  put (GenotypeV0 g) = put V0.gid >> put g
+  put (GenotypeV1 g) = put V1.gid >> put g
+  get = do
+          gid <- get :: Get Word8
+          if gid == V1.gid
+            then GenotypeV1 <$> get
+            else if gid == V0.gid
+                    then GenotypeV0 <$> get
+                    else fail "Invalid genome."
+
+instance Uniform Genotype where
+  uniformM = fmap GenotypeV1 . uniformM
 
 
 newGenotype :: StatefulGen g IO
             => g
             -> IO Genotype
 newGenotype = uniformM
-
-
-testCreate :: StatefulGen g IO
-           => g
-           -> IO ()
-testCreate g =
-  do
-    genotype <- uniformM g :: IO Genotype
-    let
-      chromosome = toChromosome genotype
-      Just genotype' = fromChromosome chromosome
-      phenotype = toPhenotype genotype'
-      Just genotype'' = fromChromosome $ toChromosome genotype'
-    writeImage ("pigy-" ++ chromosome ++ ".png") phenotype
-    putStrLn ""
-    putStrLn $ "Chromosome: " ++ chromosome
-    putStrLn ""
-    putStrLn $ "Before encoding: " ++ show genotype
-    putStrLn ""
-    putStrLn $ "After encoding: " ++ show genotype'
-    putStrLn ""
-    putStrLn $ "Encoding okay: " ++ show (genotype' == genotype'')
-
-
-testCrossover :: StatefulGen g IO
-              => g
-              -> IO ()
-testCrossover g =
-  do
-    parent  <- uniformM g
-    parent' <- uniformM g
-    offspring <- crossover g [parent, parent']
-    putStrLn ""
-    putStrLn $ "Parent 1: " ++ show parent
-    putStrLn ""
-    putStrLn $ "Parent 2: " ++ show parent'
-    putStrLn ""
-    putStrLn $ "Offsping: " ++ show offspring
-    writeImage "pigy-parent-1.png"
-      $ toPhenotype parent
-    writeImage "pigy-parent-2.png"
-      $ toPhenotype parent'
-    writeImage "pigy-offspring.png"
-      $ toPhenotype offspring
-
-
-testTree :: StatefulGen g IO
-         => g
-         -> IO ()
-testTree g =
-  do
-    putStrLn "digraph pigy {"
-    parents <- replicateM 6 (uniformM g)
-    sequence_
-      [
-        do
-          putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
-          writeImage filename $ toPhenotype parent
-      |
-        parent <- parents
-      , let tag      =  toChromosome parent
-            filename = "pigy-" ++ tag ++ ".png"
-      ]
-    children <-
-      sequence
-        [
-          do
-            child <- crossover g [parent1, parent2]
-            let
-              tag      =  toChromosome child
-              filename = "pigy-" ++ tag ++ ".png"
-            putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
-            putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
-            putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
-            writeImage filename $ toPhenotype child
-            return child
-        |
-          (parent1, parent2) <- zip (init parents) (tail parents)
-        , let
-            tag1 =  toChromosome parent1
-            tag2 =  toChromosome parent2
-        ]
-    grandchildren <-
-      sequence
-        [
-          do
-            child <- crossover g [parent1, parent2]
-            let
-              tag      =  toChromosome child
-              filename = "pigy-" ++ tag ++ ".png"
-            putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
-            putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
-            putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
-            writeImage filename $ toPhenotype child
-            return child
-        |
-          (parent1, parent2) <- zip (init children) (tail children)
-        , let
-            tag1 =  toChromosome parent1
-            tag2 =  toChromosome parent2
-        ]
-    sequence_
-      [
-        do
-          child <- crossover g [parent1, parent2]
-          let
-            tag      =  toChromosome child
-            filename = "pigy-" ++ tag ++ ".png"
-          putStrLn $ "P_" ++ tag ++ " [label=\"" ++ tag ++ "\" labelloc=\"t\" shape=box image=\"" ++ filename ++ "\"]"
-          putStrLn $ "P_" ++ tag1 ++ " -> " ++ "P_" ++ tag
-          putStrLn $ "P_" ++ tag2 ++ " -> " ++ "P_" ++ tag
-          writeImage filename $ toPhenotype child
-          return child
-      |
-        (parent1, parent2) <- zip (init grandchildren) (tail grandchildren)
-      , let
-          tag1 =  toChromosome parent1
-          tag2 =  toChromosome parent2
-      ]
-    putStrLn "}"
-
-
-type Chromosome = String
 
 
 toChromosome :: Genotype
@@ -191,114 +87,19 @@ toChromosome =
 
 fromChromosome :: Chromosome
                -> Maybe Genotype
-fromChromosome =
+fromChromosome text
+  | length text == 15 = GenotypeV0 <$> fromChromosome' text
+  | otherwise         = fromChromosome' text
+
+
+fromChromosome' :: Binary a
+                => Chromosome
+                -> Maybe a
+fromChromosome' =
     fmap (decode . LBS.fromStrict)
   . Base58.decodeBase58 Base58.bitcoinAlphabet
   . BS.pack
   . fmap (toEnum . fromEnum)
-
-
-data Genotype =
-  Genotype
-  {
-    ar     :: Float
-  , headx  :: Float
-  , heady  :: Float
-  , eyex   :: Float
-  , eyey   :: Float
-  , nosex  :: Float
-  , nosey  :: Float
-  , earx   :: Float
-  , eary   :: Float
-  , torso  :: Float
-  , skinh  :: Float
-  , eyeh   :: Float
-  , eyes   :: Float
-  , eyel   :: Float
-  , pupilh :: Float
-  , pupils :: Float
-  , pupill :: Float
-  , noseh  :: Float
-  , noses  :: Float
-  , nosel  :: Float
-  , eyea   :: Float
-  , eyef   :: Float
-  }
-    deriving (Eq, Ord, Read, Show)
-
-instance Binary Genotype where
-  put Genotype{..} =
-    do
-      let
-        quantize :: (Float, Float) -> Float -> (Float, Float) -> Float -> Word8
-        quantize (x0, x1) x (y0, y1) y =
-          let
-            hi = round $ 15 * (x - x0) / (x1 - x0)
-            lo = round $ 15 * (y - y0) / (y1 - y0)
-          in
-            16 * hi + lo
-      put $ quantize (0.75, 1.25) ar     (0.75, 1.25) torso
-      put $ quantize (0.75, 1.00) headx  (0.75, 1.00) heady
-      put $ quantize (0.75, 1.00) eyex   (0.75, 1.00) eyey
-      put $ quantize (0.75, 1.00) nosex  (0.75, 1.00) nosey
-      put $ quantize (0.75, 1.00) earx   (0.75, 1.00) eary
-      put $ quantize (210 , 450 ) skinh  (0   , 360 ) eyeh   
-      put $ quantize (0.80, 1.00) eyes   (0.65, 1.00) eyel   
-      put $ quantize (0   , 360 ) pupilh (0.80, 1.00) pupils
-      put $ quantize (0.00, 0.35) pupill (0   , 360 ) noseh  
-      put $ quantize (0.80, 1.00) noses  (0.00, 0.40) nosel  
-      put $ quantize (0   , 360 ) eyea   (0.2 , 1   ) eyef
-  get =
-    do
-      let
-        unquantize :: (Float, Float) -> (Float, Float) -> Word8 -> (Float, Float)
-        unquantize (x0, x1) (y0, y1) w =
-          let
-            (hi, lo) = w `divMod` 16
-          in
-            (
-              x0 + (x1 - x0) * fromIntegral hi / 15
-            , y0 + (y1 - y0) * fromIntegral lo / 15
-            )
-      (ar    , torso ) <- unquantize (0.75, 1.25) (0.75, 1.25) <$> get
-      (headx , heady ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (eyex  , eyey  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (nosex , nosey ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (earx  , eary  ) <- unquantize (0.75, 1.00) (0.75, 1.00) <$> get
-      (skinh , eyeh  ) <- unquantize (210 , 450 ) (0   , 360 ) <$> get 
-      (eyes  , eyel  ) <- unquantize (0.80, 1.00) (0.65, 1.00) <$> get 
-      (pupilh, pupils) <- unquantize (0   , 360 ) (0.80, 1.00) <$> get 
-      (pupill, noseh ) <- unquantize (0.00, 0.35) (0   , 360 ) <$> get 
-      (noses , nosel ) <- unquantize (0.80, 1.00) (0.00, 0.40) <$> get 
-      (eyea  , eyef  ) <- unquantize (0   , 360 ) (0.2 , 1   ) <$> get
-      return Genotype{..}
-
-instance Uniform Genotype where
-  uniformM g =
-    do
-      ar     <- uniformRM (0.75, 1.25) g
-      torso  <- uniformRM (0.75, 1.25) g
-      headx  <- uniformRM (0.75, 1.00) g
-      heady  <- uniformRM (0.75, 1.00) g
-      eyex   <- uniformRM (0.75, 1.00) g
-      eyey   <- uniformRM (0.75, 1.00) g
-      nosex  <- uniformRM (0.75, 1.00) g
-      nosey  <- uniformRM (0.75, 1.00) g
-      earx   <- uniformRM (0.75, 1.00) g
-      eary   <- uniformRM (0.75, 1.00) g
-      skinh  <- uniformRM (210 , 450 ) g
-      eyeh   <- uniformRM (0   , 360 ) g
-      eyes   <- uniformRM (0.80, 1.00) g
-      eyel   <- uniformRM (0.65, 1.00) g
-      pupilh <- uniformRM (0   , 360 ) g
-      pupils <- uniformRM (0.80, 1.00) g
-      pupill <- uniformRM (0.00, 0.35) g
-      noseh  <- uniformRM (0   , 360 ) g
-      noses  <- uniformRM (0.80, 1.00) g
-      nosel  <- uniformRM (0.00, 0.40) g
-      eyea   <- uniformRM (0   , 360 ) g
-      eyef   <- uniformRM (0.2 , 1   ) g
-      return Genotype{..}
 
 
 crossover :: MonadFail m
@@ -306,82 +107,10 @@ crossover :: MonadFail m
           => g
           -> [Genotype]
           -> m Genotype
-crossover g genotypes =
-  do
-    let
-      n = length genotypes
-    [ar', headx', heady', eyex', eyey', nosex', nosey', earx', eary', torso', skinh', eyeh', eyes', eyel', pupilh', pupils', pupill', noseh', noses', nosel', eyea', eyef'] <- replicateM 22 $ uniformRM (0, n-1) g
-    return
-      $ Genotype
-      {
-        ar      = ar     $ genotypes !! ar'    
-      , headx   = headx  $ genotypes !! headx' 
-      , heady   = heady  $ genotypes !! heady' 
-      , eyex    = eyex   $ genotypes !! eyex'  
-      , eyey    = eyey   $ genotypes !! eyey'  
-      , nosex   = nosex  $ genotypes !! nosex' 
-      , nosey   = nosey  $ genotypes !! nosey' 
-      , earx    = earx   $ genotypes !! earx'  
-      , eary    = eary   $ genotypes !! eary'  
-      , torso   = torso  $ genotypes !! torso' 
-      , skinh   = skinh  $ genotypes !! skinh' 
-      , eyeh    = eyeh   $ genotypes !! eyeh'  
-      , eyes    = eyes   $ genotypes !! eyes'  
-      , eyel    = eyel   $ genotypes !! eyel'  
-      , pupilh  = pupilh $ genotypes !! pupilh'
-      , pupils  = pupils $ genotypes !! pupils'
-      , pupill  = pupill $ genotypes !! pupill'
-      , noseh   = noseh  $ genotypes !! noseh' 
-      , noses   = noses  $ genotypes !! noses' 
-      , nosel   = nosel  $ genotypes !! nosel' 
-      , eyea    = eyea   $ genotypes !! eyea'  
-      , eyef    = eyef   $ genotypes !! eyef'  
-      }
-
-
-data Phenotype =
-  Phenotype
-  {
-    skinHue     :: Float
-  , eyeColor    :: PixelRGBA8
-  , pupilColor  :: PixelRGBA8
-  , noseColor   :: PixelRGBA8
-  , aspect      :: Float
-  , headScale   :: (Float, Float)
-  , eyeScale    :: (Float, Float)
-  , noseScale   :: (Float, Float)
-  , earScale    :: (Float, Float)
-  , bodyScale   :: Float
-  , eyeAngle    :: Float
-  , eyeFraction :: Float
-  }
-    deriving (Eq, Ord, Show)
-
-
-toPhenotype :: Genotype
-            -> Phenotype
-toPhenotype Genotype{..} =
-  let
-    hsl2rgb h s l =
-      let
-        RGB{..} = hsl h s l
-        q x = round $ 255 * x
-      in
-        PixelRGBA8 (q channelRed) (q channelGreen) (q channelBlue) 0xFF
-    skinHue     = skinh
-    eyeColor    = hsl2rgb eyeh  eyes  eyel
-    pupilColor  = hsl2rgb pupilh pupils pupill
-    noseColor   = hsl2rgb noseh  noses  nosel
-    aspect      = ar
-    headScale   = (headx, heady)
-    eyeScale    = (eyex , eyey )
-    noseScale   = (nosex, nosey)
-    earScale    = (earx , eary )
-    bodyScale   = torso
-    eyeAngle    = eyea * pi / 180
-    eyeFraction = eyef
-  in
-    Phenotype{..}
+crossover g =
+  fmap GenotypeV1
+    . V1.crossover g
+    . fmap upgrade
 
 
 toPngBytes :: Phenotype
@@ -419,11 +148,11 @@ toImage Phenotype{..} =
     . withAspect aspect (width / 2, height / 2)
     $ do
       let
-        pink1 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x57 0xA7 0xFF
-        pink2 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x85 0xC0 0xFF
-        pink3 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x70 0xB5 0xFF
-        pink4 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0x41 0x9C 0xFF
-        pink5 = uniformTexture . blend skinHue $ PixelRGBA8 0xFF 0xAD 0xD4 0xFF
+        pink1 = uniformTexture $ skin skinHue 0.67
+        pink2 = uniformTexture $ skin skinHue 0.76
+        pink3 = uniformTexture $ skin skinHue 0.72
+        pink4 = uniformTexture $ skin skinHue 0.63
+        pink5 = uniformTexture $ skin skinHue 0.84
       drawBody bodyScale pink1 pink2 pink1
       withScale headScale (width / 2, 150)
         $ do
@@ -611,13 +340,12 @@ withScale (sx, sy) (cx, cy) =
     <> translate (V2 (- cx) (- cy))
 
 
-blend :: Float
+skin :: Float
+      -> Float
       -> PixelRGBA8
-      -> PixelRGBA8
-blend h0 (PixelRGBA8 r1 g1 b1 _) =
+skin h l =
   let
-    (h1, s1, l1) = hslView $ RGB (fromIntegral r1 / 255) (fromIntegral g1 / 255) (fromIntegral b1 / 255)
-    RGB{..} = hsl ((h0 + h1) / 2) s1 l1
+    RGB{..} = hsl h 0.7 l
     q x = round $ 255 * x
   in
     PixelRGBA8
