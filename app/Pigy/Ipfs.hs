@@ -1,8 +1,4 @@
 
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE RecordWildCards #-}
-
-
 module Pigy.Ipfs (
   pinImage
 ) where

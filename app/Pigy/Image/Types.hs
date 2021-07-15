@@ -1,7 +1,5 @@
 
-{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RecordWildCards       #-}
 
 
 module Pigy.Image.Types (
