@@ -37,6 +37,7 @@ data Configuration =
   , keyInfo     :: KeyInfo
   , ipfsScript  :: FilePath
   , imageFolder :: FilePath
+  , quiet       :: Bool
   }
     deriving (Read, Show)
 
@@ -63,6 +64,7 @@ data Context =
   , gRandom      :: IOGenM StdGen
   , ipfsPin      :: FilePath
   , images       :: FilePath
+  , verbose      :: Bool
   }
 
 
@@ -106,6 +108,7 @@ makeContext Configuration{..} =
       token = AssetId policyId' assetName'
       ipfsPin = ipfsScript
       images = imageFolder
+      verbose = not quiet
     pparams <- queryProtocol socketPath protocol network
     return Context{..}
 
