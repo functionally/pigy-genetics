@@ -29,15 +29,14 @@ import qualified Data.ByteString.Char8 as BS (pack)
 data Configuration =
   Configuration
   {
-    socketPath      :: FilePath
-  , magic           :: Maybe Word32
-  , epochSlots      :: Word64
-  , policyId        :: String
-  , assetName       :: String
-  , keyInfo         :: KeyInfo
-  , ipfsEnvironment :: [(String, String)]
-  , ipfsService     :: String
-  , imageFolder     :: FilePath
+    socketPath  :: FilePath
+  , magic       :: Maybe Word32
+  , epochSlots  :: Word64
+  , policyId    :: String
+  , assetName   :: String
+  , keyInfo     :: KeyInfo
+  , ipfsScript  :: FilePath
+  , imageFolder :: FilePath
   }
     deriving (Read, Show)
 
@@ -62,7 +61,7 @@ data Context =
   , token        :: AssetId
   , keyedAddress :: KeyedAddress
   , gRandom      :: IOGenM StdGen
-  , ipfsEnv      :: (String, [(String, String)])
+  , ipfsPin      :: FilePath
   , images       :: FilePath
   }
 
@@ -105,7 +104,7 @@ makeContext Configuration{..} =
       protocol = CardanoModeParams $ EpochSlots epochSlots
       network = maybe Mainnet (Testnet . NetworkMagic) magic
       token = AssetId policyId' assetName'
-      ipfsEnv = (ipfsService, ipfsEnvironment)
+      ipfsPin = ipfsScript
       images = imageFolder
     pparams <- queryProtocol socketPath protocol network
     return Context{..}

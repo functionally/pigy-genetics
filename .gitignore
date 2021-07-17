@@ -12,3 +12,6 @@ design/
 *.address
 *.gpg
 *.pigy-genetics
+*.path
+*.secret
+*.key

@@ -148,7 +148,7 @@ mint Context{..} txIn destination value =
                        else do
                               putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
-               (chromosome, cid) <- pinImage ipfsEnv images genotype
+               (chromosome, cid) <- pinImage ipfsPin images genotype
                let
                  name = "PIG@" ++ chromosome
                return
