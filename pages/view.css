@@ -25,12 +25,20 @@ table {
 }
 
 #examples-table td:nth-of-type(3) img {
+  width         : 10vw
+; display       : block
+; margin-top    : auto
+; margin-bottom : auto
+; vertical-align: center
+}
+
+#examples-table td:nth-of-type(4) img {
   display     : block
 ; margin-left : auto
 ; margin-right: auto
 }
 
-#examples-table td:nth-of-type(4) img {
+#examples-table td:nth-of-type(5) img {
   width         : 20vw
 ; display       : block
 ; margin-top    : auto
@@ -65,7 +73,7 @@ table {
 }
 
 
-#experimental, #rules-table tfoot {
+.warning, #rules-table tfoot {
   color     : red
 }
 
