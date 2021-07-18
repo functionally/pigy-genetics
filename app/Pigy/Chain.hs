@@ -59,8 +59,11 @@ pigy context@Context{..} =
           found <- (txIn `M.member`) <$> readIORef sourceRef
           when found
             $ do
-              putStrLn ""
-              putStrLn $ show slotNo ++ ": spent " ++ show txIn
+              isPending <- (txIn `M.member`) <$> readIORef pendingRef
+              when (verbose || isPending)
+                $ do
+                  putStrLn ""
+                  putStrLn $ show slotNo ++ ": spent " ++ show txIn
               modifyIORef sourceRef
                 (txIn `M.delete`)
               modifyIORef pendingRef
@@ -76,12 +79,14 @@ pigy context@Context{..} =
                   $ M.insert output destination
                 let
                   sources = mapMaybe (`M.lookup` source) inputs
-                putStrLn ""
-                putStrLn $ "Output: " ++ show output
-                putStrLn $ "  Sources: " ++ show (showAddressMary <$> sources)
-                putStrLn $ "  Destination: " ++ showAddressMary destination
-                putStrLn $ "  To me: " ++ show (destination == keyAddress)
-                printValueIO "  " value
+                when (verbose || destination == keyAddress)
+                  $ do
+                    putStrLn ""
+                    putStrLn $ "Output: " ++ show output
+                    putStrLn $ "  Sources: " ++ show (showAddressMary <$> sources)
+                    putStrLn $ "  Destination: " ++ showAddressMary destination
+                    putStrLn $ "  To me: " ++ show (destination == keyAddress)
+                    printValueIO "  " value
                 when (destination == keyAddress && not (null sources))
                   $ if active
                       then createToken output (head sources, value)
@@ -93,7 +98,7 @@ pigy context@Context{..} =
       createToken input (destination, value) =
         do
           putStrLn ""
-          putStrLn "Creating token."
+          putStrLn "Minting token."
           putStrLn $ "  Input: " ++ show input
           putStrLn $ "  Destination: " ++ showAddressMary destination
           putStrLn $ "  To me: "++ show (destination == keyAddress)
@@ -132,7 +137,7 @@ mint Context{..} txIn destination value =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "  Burn token: " ++ BS.unpack (head pigs)
+               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -148,7 +153,7 @@ mint Context{..} txIn destination value =
                        else do
                               putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
-               (chromosome, cid) <- pinImage ipfsEnv images genotype
+               (chromosome, cid) <- pinImage ipfsPin images genotype
                let
                  name = "PIG@" ++ chromosome
                return

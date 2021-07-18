@@ -73,11 +73,12 @@ table {
 }
 
 
-#example-genetics {
-  position: float
+#family-tree {
+  position: relative
 ; top     : 0
+; right   : 0
 ; float   : right
-; width   : 300px
+; width   : 30vw
 }
 
 
