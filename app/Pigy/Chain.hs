@@ -9,7 +9,7 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, selectAsset, serialiseToRawBytesHexText, valueFromList, valueToList)
+import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), SlotNo(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, selectAsset, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad                                     (unless, when)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
@@ -26,9 +26,43 @@ import Pigy.Image                                        (crossover, fromChromos
 import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
-import qualified Data.ByteString.Char8 as BS (drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M  (delete, empty, insert, lookup, member, singleton, toList)
-import qualified Data.Text             as T  (pack)
+import qualified Data.ByteString.Char8 as BS  (drop, isPrefixOf, pack, unpack)
+import qualified Data.Map.Strict       as M   (Map, delete, empty, insert, lookup, member, singleton, toList)
+import qualified Data.Text             as T   (pack)
+
+
+kSecurity :: Int
+kSecurity = 2160
+
+
+type History = [(SlotNo, (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn (AddressInEra MaryEra, Value)))]
+
+
+record :: SlotNo
+       -> (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn (AddressInEra MaryEra, Value))
+       -> History
+       -> History
+record slot sourcePending history =
+  take kSecurity
+    $ (slot, sourcePending)
+    : history
+
+
+rollback :: SlotNo
+         -> History
+         -> History
+rollback slot =
+    dropWhile
+      $ (/= slot)
+      . fst
+
+
+toSlotNo :: ChainPoint
+         -> SlotNo
+toSlotNo point =
+  case show point of
+    "ChainPointAtGenesis" -> SlotNo 0
+    text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
 
 
 pigy :: MonadFail m
@@ -40,8 +74,23 @@ pigy context@Context{..} =
     activeRef  <- liftIO $ newIORef False
     sourceRef  <- liftIO $ newIORef M.empty
     pendingRef <- liftIO $ newIORef M.empty
+    historyRef <- liftIO $ newIORef [(SlotNo 0, (M.empty, M.empty))]
+    slotRef    <- liftIO . newIORef $ SlotNo 0
     let
       KeyedAddress{..} = keyedAddress
+      rollbackHandler point _ =
+        do
+          slot0 <- readIORef slotRef
+          let
+            slot = toSlotNo point
+          putStrLn ""
+          putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show slot0
+          modifyIORef historyRef
+            $ rollback slot
+          (_, (source, pending)) <- head <$> readIORef historyRef
+          writeIORef slotRef slot
+          writeIORef sourceRef  source
+          writeIORef pendingRef pending
       idleHandler =
         do
           active <- readIORef activeRef
@@ -54,7 +103,19 @@ pigy context@Context{..} =
           mapM_ (uncurry createToken)
             $ M.toList pending
           return False
-      inHandler (BlockHeader slotNo _ _) txIn =
+      blockHandler (BlockHeader slot _ _) _ =
+        do
+          slot0 <- readIORef slotRef
+          when verbose
+            $ do
+              putStrLn ""
+              putStrLn $ "New block: " ++ show slot0 ++ " -> " ++ show slot
+          source  <- readIORef sourceRef
+          pending <- readIORef pendingRef
+          modifyIORef historyRef
+            $ record slot0 (source, pending)
+          writeIORef slotRef slot
+      inHandler (BlockHeader slot _ _) txIn =
         do
           found <- (txIn `M.member`) <$> readIORef sourceRef
           when found
@@ -63,7 +124,7 @@ pigy context@Context{..} =
               when (verbose || isPending)
                 $ do
                   putStrLn ""
-                  putStrLn $ show slotNo ++ ": spent " ++ show txIn
+                  putStrLn $ show slot ++ ": spent " ++ show txIn
               modifyIORef sourceRef
                 (txIn `M.delete`)
               modifyIORef pendingRef
@@ -113,7 +174,15 @@ pigy context@Context{..} =
               case result of
                 Right ()      -> return ()
                 Left  message -> putStrLn $ "  " ++ message
-    watchTransactions socket protocol network idleHandler inHandler outHandler
+    watchTransactions
+      socket
+      protocol
+      network
+      (Just rollbackHandler)
+      idleHandler
+      blockHandler
+      inHandler
+      outHandler
 
 
 mint :: MonadFail m
