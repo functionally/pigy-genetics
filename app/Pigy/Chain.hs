@@ -105,8 +105,9 @@ pigy context@Context{..} =
           return False
       blockHandler (BlockHeader slot _ _) _ =
         do
+          active <- readIORef activeRef
           slot0 <- readIORef slotRef
-          when verbose
+          when (verbose && active)
             $ do
               putStrLn ""
               putStrLn $ "New block: " ++ show slot0 ++ " -> " ++ show slot
