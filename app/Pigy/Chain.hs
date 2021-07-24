@@ -120,7 +120,7 @@ runChain context@Context{..} =
                     $ do
                       putStrLn ""
                       putStrLn "Multiple input transactions:"
-                      putStrLn $ "  Stake: " ++ show stake
+                      putStrLn $ "  Stake: " ++ stake
                       sequence_
                         [
                           putStrLn $ "  Source: " ++ show (showAddressMary source')
