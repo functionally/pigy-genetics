@@ -328,7 +328,7 @@ mint Context{..} txIns destination value message =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
+               printMantis $ "Burnt token: " ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -339,10 +339,10 @@ mint Context{..} txIns destination value message =
                  liftIO
                    $ if null pigs
                        then do
-                              putStrLn "  New token."
+                              putStrLn "New token."
                               newGenotype gRandom
                        else do
-                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
+                              putStrLn $ "Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
                (chromosome, cid) <- pinImage ipfsPin images genotype
                let
