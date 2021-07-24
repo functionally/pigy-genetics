@@ -29,7 +29,7 @@ import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
 import qualified Data.ByteString.Char8 as BS  (ByteString, drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M   (Map, delete, empty, fromListWith, insert, lookup, member, singleton, toList)
+import qualified Data.Map.Strict       as M   (Map, delete, empty, fromList, fromListWith, insert, lookup, member, toList)
 import qualified Data.Text             as T   (pack)
 
 
@@ -120,7 +120,7 @@ runChain context@Context{..} =
                     $ do
                       putStrLn ""
                       putStrLn "Multiple input transactions:"
-                      putStrLn $ "  Stake: " ++ show stake
+                      putStrLn $ "  Stake: " ++ stake
                       sequence_
                         [
                           putStrLn $ "  Source: " ++ show (showAddressMary source')
@@ -247,10 +247,28 @@ runChain context@Context{..} =
             ]
           unless (destination == keyAddress)
             $ do
-              result <- runMantisToIO $ mint context inputs destination value
+              let
+                message =
+                  case (selectAsset value token, length inputs) of
+                    (1, 1) -> [
+                                "Thank you!"
+                              ]
+                    (1, _) -> [
+                                "Please send the tokens and ADA in a single transaction."
+                              ]
+                    (_, 1) -> [
+                                "There is a limit of one minting per transaction."
+                              , "Sending more that one PIGY does not mint more pig images."
+                              ]
+                    (_, _) -> [
+                                "There is a limit of one minting per transaction."
+                              , "Sending more that one PIGY does not mint more pig images."
+                              , "Also, please send the tokens and ADA in a single transaction."
+                              ]
+              result <- runMantisToIO $ mint context inputs destination value message
               case result of
-                Right ()      -> return ()
-                Left  message -> putStrLn $ "  " ++ message
+                Right () -> return ()
+                Left  e  -> putStrLn $ "  " ++ e
     watchTransactions
       socket
       protocol
@@ -299,8 +317,9 @@ mint :: MonadFail m
      -> [TxIn]
      -> AddressInEra MaryEra
      -> Value
+     -> [String]
      -> MantisM m ()
-mint Context{..} txIns destination value =
+mint Context{..} txIns destination value message =
   do
     let
       KeyedAddress{..} = keyedAddress
@@ -309,7 +328,7 @@ mint Context{..} txIns destination value =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
+               printMantis $ "Burnt token: " ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -320,10 +339,10 @@ mint Context{..} txIns destination value =
                  liftIO
                    $ if null pigs
                        then do
-                              putStrLn "  New token."
+                              putStrLn "New token."
                               newGenotype gRandom
                        else do
-                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
+                              putStrLn $ "Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
                (chromosome, cid) <- pinImage ipfsPin images genotype
                let
@@ -332,27 +351,42 @@ mint Context{..} txIns destination value =
                  (
                    Just
                      . TxMetadata
-                     . M.singleton 721
-                     $ TxMetaMap
-                       [
-                         (
-                           TxMetaText . serialiseToRawBytesHexText $ scriptHash
-                         , TxMetaMap
-                           [
-                             (
-                               TxMetaText $ T.pack name
-                             , TxMetaMap
-                               [
-                                 (TxMetaText "name"      , TxMetaText . T.pack $ "PIG " ++ chromosome                         )
-                               , (TxMetaText "image"     , TxMetaText $ "ipfs://" <> T.pack cid                               )
-                               , (TxMetaText "ticker"    , TxMetaText $ T.pack name                                           )
-                               , (TxMetaText "parents"   , TxMetaList $ TxMetaText . T.pack . ("PIG@" ++) . BS.unpack <$> pigs)
-                               , (TxMetaText "url"       , TxMetaText "https://pigy.functionally.live"                        )
-                               ]
-                             )
-                           ]
-                         )
-                       ]
+                     $ M.fromList
+                     [
+                       (
+                         721
+                       , TxMetaMap
+                         [
+                           (
+                             TxMetaText . serialiseToRawBytesHexText $ scriptHash
+                           , TxMetaMap
+                             [
+                               (
+                                 TxMetaText $ T.pack name
+                               , TxMetaMap
+                                 [
+                                   (TxMetaText "name"      , TxMetaText . T.pack $ "PIG " ++ chromosome                         )
+                                 , (TxMetaText "image"     , TxMetaText $ "ipfs://" <> T.pack cid                               )
+                                 , (TxMetaText "ticker"    , TxMetaText $ T.pack name                                           )
+                                 , (TxMetaText "parents"   , TxMetaList $ TxMetaText . T.pack . ("PIG@" ++) . BS.unpack <$> pigs)
+                                 , (TxMetaText "url"       , TxMetaText "https://pigy.functionally.live"                        )
+                                 ]
+                               )
+                             ]
+                           )
+                         ]
+                       )
+                     , (
+                         674
+                       , TxMetaMap
+                         [
+                           (
+                             TxMetaText "msg"
+                           , TxMetaList $ TxMetaText . T.pack <$> message
+                           )
+                         ]
+                       )
+                     ]
                  , valueFromList [(AssetId (PolicyId scriptHash) (AssetName $ BS.pack name),  1)]
                  )
     let
