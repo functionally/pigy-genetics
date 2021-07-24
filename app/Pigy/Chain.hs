@@ -1,15 +1,17 @@
 
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE TypeFamilies       #-}
 
 
 module Pigy.Chain (
-  pigy
+  runChain
 ) where
 
 
-import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), ShelleyWitnessSigningKey(..), SlotNo(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, selectAsset, serialiseToRawBytesHexText, valueFromList, valueToList)
+import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), Quantity(..), ScriptHash, ShelleyWitnessSigningKey(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad                                     (unless, when)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
@@ -20,14 +22,14 @@ import Mantis.Query                                      (submitTransaction)
 import Mantis.Script                                     (mintingScript)
 import Mantis.Types                                      (MantisM, foistMantisEither, printMantis, runMantisToIO)
 import Mantis.Transaction                                (includeFee, makeTransaction, printValueIO, supportedMultiAsset)
-import Mantis.Wallet                                     (showAddressMary)
+import Mantis.Wallet                                     (showAddressMary, stakeReferenceMary)
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
 import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
 import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
-import qualified Data.ByteString.Char8 as BS  (drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M   (Map, delete, empty, insert, lookup, member, singleton, toList)
+import qualified Data.ByteString.Char8 as BS  (ByteString, drop, isPrefixOf, pack, unpack)
+import qualified Data.Map.Strict       as M   (Map, delete, empty, fromListWith, insert, lookup, member, singleton, toList)
 import qualified Data.Text             as T   (pack)
 
 
@@ -35,11 +37,11 @@ kSecurity :: Int
 kSecurity = 2160
 
 
-type History = [(SlotNo, (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn (AddressInEra MaryEra, Value)))]
+type History = [(SlotNo, (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn ([AddressInEra MaryEra], Value)))]
 
 
 record :: SlotNo
-       -> (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn (AddressInEra MaryEra, Value))
+       -> (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn ([AddressInEra MaryEra], Value))
        -> History
        -> History
 record slot sourcePending history =
@@ -65,11 +67,11 @@ toSlotNo point =
     text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
 
 
-pigy :: MonadFail m
-     => MonadIO m
-     => Context
-     -> MantisM m ()
-pigy context@Context{..} =
+runChain :: MonadFail m
+         => MonadIO m
+         => Context
+         -> MantisM m ()
+runChain context@Context{..} =
   do
     activeRef  <- liftIO $ newIORef False
     sourceRef  <- liftIO $ newIORef M.empty
@@ -78,6 +80,7 @@ pigy context@Context{..} =
     slotRef    <- liftIO . newIORef $ SlotNo 0
     let
       KeyedAddress{..} = keyedAddress
+      (_, scriptHash) = mintingScript verificationHash Nothing
       rollbackHandler point _ =
         do
           slot0 <- readIORef slotRef
@@ -100,8 +103,58 @@ pigy context@Context{..} =
               putStrLn "First idling."
               writeIORef activeRef True
           pending <- readIORef pendingRef
-          mapM_ (uncurry createToken)
-            $ M.toList pending
+          sequence_
+            [
+              createToken [output] (head sources, value)
+            |
+              (output, (sources, value)) <- M.toList pending
+            , checkValue token scriptHash value
+            ]
+          sequence_
+            [
+              do
+                when (verbose || valid)
+                  $ do
+                    putStrLn ""
+                    putStrLn "Multiple input transactions:"
+                    putStrLn $ "  Stake: " ++ show stake
+                    sequence_
+                      [
+                        putStrLn $ "  Source: " ++ show (showAddressMary source')
+                      |
+                        source' <- sources
+                      ]
+                    putStrLn $ "  Valid: " ++ show valid
+                    printValueIO "  " value
+                when valid
+                  $ createToken outputs (head sources, value)
+            |
+              let pending' = M.fromListWith
+                               (
+                                 \(outputs, sources, value) (outputs', sources', value') ->
+                                   (
+                                     outputs <> outputs'
+                                   , sources <> sources'
+                                   , value   <> value'
+                                   )
+                               )
+                               . map
+                               (
+                                 \(output, (sources, value)) ->
+                                   (
+                                     show . stakeReferenceMary $ head sources
+                                   , (
+                                       [output]
+                                     , sources
+                                     , value
+                                     )
+                                   )
+                               )
+                               $ M.toList pending
+            , (stake, (outputs, sources, value)) <- M.toList pending'
+            , let valid = checkValue token scriptHash value
+            , stake /= show NoStakeAddress
+            ]
           return False
       blockHandler (BlockHeader slot _ _) _ =
         do
@@ -132,8 +185,8 @@ pigy context@Context{..} =
                 (txIn `M.delete`)
       outHandler _ inputs output (TxOut destination txOutValue) =
         case txOutValue of
-          TxOutValue _ value -> 
-            when (selectAsset value token > 0)
+          TxOutValue _ value ->
+            when (selectAsset value token > 0 || destination == keyAddress)
               $ do
                 active <- readIORef activeRef
                 source <- readIORef sourceRef
@@ -141,37 +194,56 @@ pigy context@Context{..} =
                   $ M.insert output destination
                 let
                   sources = mapMaybe (`M.lookup` source) inputs
+                  valid = checkValue token scriptHash value
                 when (verbose || destination == keyAddress)
                   $ do
                     putStrLn ""
                     putStrLn $ "Output: " ++ show output
-                    putStrLn $ "  Sources: " ++ show (showAddressMary <$> sources)
+                    sequence_
+                      [
+                        putStrLn $ "  Source: " ++ show (showAddressMary source')
+                      |
+                        source' <- sources
+                      ]
                     putStrLn $ "  Destination: " ++ showAddressMary destination
+                    putStrLn $ "  Stake: " ++ show (stakeReferenceMary destination)
                     putStrLn $ "  To me: " ++ show (destination == keyAddress)
+                    putStrLn $ "  Valid: " ++ show valid
                     printValueIO "  " value
                 when (destination == keyAddress && not (null sources))
-                  $ if active
-                      then createToken output (head sources, value)
+                  $ if active && valid
+                      then createToken [output] (head sources, value)
                       else do
                              putStrLn "  Queued for creation."
                              modifyIORef pendingRef
-                               $ M.insert output (head sources, value)
+                               $ M.insert output (sources, value)
           _ -> return ()
-      createToken input (destination, value) =
+      createToken inputs (destination, value) =
         do
           putStrLn ""
           putStrLn "Minting token."
-          putStrLn $ "  Input: " ++ show input
+          sequence_
+            [
+              putStrLn $ "  Input: " ++ show input
+            |
+              input <- inputs
+            ]
           putStrLn $ "  Destination: " ++ showAddressMary destination
           putStrLn $ "  To me: "++ show (destination == keyAddress)
-          putStrLn $ "  Value: " ++ show value
-          modifyIORef sourceRef
-            (input `M.delete`)
-          modifyIORef pendingRef
-            (input `M.delete`)
+          printValueIO "  " value
+          sequence_
+            [
+              do
+                modifyIORef sourceRef
+                  (input `M.delete`)
+                modifyIORef pendingRef
+                  (input `M.delete`)
+            |
+              input <-inputs
+            ]
           unless (destination == keyAddress)
             $ do
-              result <- runMantisToIO $ mint context input destination value
+              result <- runMantisToIO $ mint context inputs destination value
               case result of
                 Right ()      -> return ()
                 Left  message -> putStrLn $ "  " ++ message
@@ -186,24 +258,50 @@ pigy context@Context{..} =
       outHandler
 
 
+checkValue :: AssetId
+           -> ScriptHash
+           -> Value
+           -> Bool
+checkValue token scriptHash value =
+  let
+    ada = selectLovelace value
+    pigy = selectAsset value token
+    pigs = maximum[1, length $ findPigs scriptHash value]
+    a = 1_500_000
+    b =   500_000
+  in
+    pigy > 0 && ada >= quantityToLovelace (Quantity $ a + b * fromIntegral pigs)
+
+
+pigFilter :: ScriptHash
+          -> AssetId
+          -> Bool
+pigFilter scriptHash (AssetId (PolicyId scriptHash') (AssetName name')) = scriptHash' == scriptHash && BS.isPrefixOf "PIG@" name'
+pigFilter _ _ = False
+
+
+findPigs :: ScriptHash
+         -> Value
+         -> [BS.ByteString]
+findPigs scriptHash =
+  map (\(AssetId _ (AssetName name'), _) -> BS.drop 4 name')
+    . filter (pigFilter scriptHash . fst)
+    . valueToList
+
+
 mint :: MonadFail m
      => MonadIO m
      => Context
-     -> TxIn
+     -> [TxIn]
      -> AddressInEra MaryEra
      -> Value
      -> MantisM m ()
-mint Context{..} txIn destination value =
+mint Context{..} txIns destination value =
   do
     let
       KeyedAddress{..} = keyedAddress
       (script, scriptHash) = mintingScript verificationHash Nothing
-      pigFilter (AssetId (PolicyId scriptHash') (AssetName name')) = scriptHash' == scriptHash && BS.isPrefixOf "PIG@" name'
-      pigFilter _ = False
-      pigs =
-        map (\(AssetId _ (AssetName name'), _) -> BS.drop 4 name')
-          . filter (pigFilter . fst)
-          $ valueToList value
+      pigs = findPigs scriptHash value
     (metadata, minting) <-
       if length pigs == 1
         then do
@@ -211,7 +309,7 @@ mint Context{..} txIn destination value =
                return
                  (
                    Nothing
-                 , negateValue $ filterValue pigFilter value
+                 , negateValue $ filterValue (pigFilter scriptHash) value
                  )
         else do
                genotype <-
@@ -256,8 +354,8 @@ mint Context{..} txIn destination value =
     let
       value' = value <> minting
     txBody <- includeFee network pparams 1 1 1 0
-      $ makeTransaction 
-        [txIn]
+      $ makeTransaction
+        txIns
         [TxOut destination (TxOutValue supportedMultiAsset value')]
         Nothing
         metadata

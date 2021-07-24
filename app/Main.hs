@@ -4,7 +4,7 @@ module Main (
 
 
 import Mantis.Types       (runMantisToIO)
-import Pigy.Chain         (pigy)
+import Pigy.Chain         (runChain)
 import Pigy.Types         (makeContext, readConfiguration)
 import System.Environment (getArgs)
 import System.Exit        (exitFailure)
@@ -20,7 +20,7 @@ main =
         $ do
             configuration <- readConfiguration filename
             context <- makeContext configuration
-            pigy context
+            runChain context
     case result of
       Right () -> return ()
       Left e   -> hPutStrLn stderr e >> exitFailure
