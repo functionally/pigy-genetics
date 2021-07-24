@@ -16,14 +16,11 @@
       <span><a href="#disclaimer">disclaimer</a></span>
       <span><a href="#contact">contact</a></span>
     </div>
-    <p><em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this <span class="warning">experimental service</span>.</em> Also note the following:</p>
-    <ul>
-      <li><span class="warning">The PIGY and the ADA tokens must be <strong>sent together in the same transaction</strong>, not in separate transactions.</span> Unfortunately, the Yoroi and Adalite wallets presently do not allow sending multiple tokens in the same transaction; the Daedalus wallet (only available as a desktop application) does. <em>Only ever use wallets obtained from official websites and always verify that they are genuine.</em></li>
-      <li>If no PIGY or if too little ADA is sent in the transaction, the service will not automatically mint, blend, or burn the pig image token; nevertheless, the funds will be returned to the sending address via a manually-constructed transaction, in which case there may be a considerable delay (hours or days) in receiving them back. If you fail to receive the pig image token, please <span class="warning">check the metadata in the refund transaction</span> to learn why it failed.</li>
-    </ul>
+    <p><em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this <span class="warning">experimental service</span>.</em></p>
     <p>This game on the Cardano blockchain is a simple image-generating service that is powered by the <a target="pigy-genetics" href="https://www.pigytoken.com">PIGY Token</a>. Sending the PIGY Token and ADA to the address below will either mint, blend, or burn Cardano native tokens, each with a customized image of a pig.</p>
     <p>The images can be viewed by visiting the IPFS link in the minting metadata for the token, or by visiting a token-viewing explorer such as <a target="pigy-genetics" href="https://pool.pm/tokens">pool.pm/tokens</a>.</p>
     <p>The image-blending process randomly combines attributes of the "parent" images to create a new "child" image. Carefully chosen blending strategies can produce "offspring" with particular target characteristics. The diagram to the upper right shows the "family tree" for the first thirty pig image tokens created using this service.</p>
+    <p><em>If no PIGY or if too little ADA is sent in the transaction, the service will not automatically mint, blend, or burn the pig image token; nevertheless, the funds will be returned to the sending address via a manually-constructed transaction, in which case there may be a considerable delay (hours or days) in receiving them back. If you fail to receive the pig image token, please <span class="warning">check the metadata in the refund transaction</span> to learn why it failed.</em></p>
     <p>Work is in progress to add facial expression, clothing, jewelry, badges, and other accoutrements to the pig images. Eventually, this service will be migrated to a smart contract.</p>
     <p><strong>Please post suggestions or problems <a target="pigy-genetics" href="https://github.com/functionally/pigy-genetics/issues">here</a>.</strong></p>
     <hr/>
@@ -35,21 +32,21 @@
         </tr>
         <tr>
           <td>Minting</td>
-          <td>Send 2.0 ADA and 1 PIGY to the address above, and soon receive back a new pig image token, along with the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/2a61666d218fa9c94aecb334318fc283b1ed32389fe6ac2450f981aa4f50b74a">here</a>. <em>Sending more than 1 PIGY does not mint more than one pig image token.</em></td>
-          <td><em class="warning">It is required to send both the ADA and PIGY in the same transaction.</em> Here is how to do that in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-mint.png"><img src="daedalus-annotated-mint.png"/></a></td>
+          <td>Send 2.0 ADA and 1 PIGY to the address above, and soon receive back a new pig image token, along with the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/2a61666d218fa9c94aecb334318fc283b1ed32389fe6ac2450f981aa4f50b74a">here</a>. <em class="warning">Sending more than 1 PIGY does not mint more than one pig image token.</em></td>
+          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-mint.png"><img src="daedalus-annotated-mint.png"/></a></td>
           <td id="example-minting"><a target="pigy-genetics" href="example-minting.png"><img src="example-minting.png"/></a></td>
           <!--td rowspan="3"><a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><img src="addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd.png"/></a></td-->
         </tr>
         <tr>
           <td>Blending</td>
           <td>Send 2.5 ADA and 1 PIGY and <em>two pig image tokens</em> to the address above, and soon receive back a new pig image token that blends characteristics of the original two tokens, along with the original inputs minus the ~0.22 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/0a42ba6983ee39a8d3ec66bfaeedd869b5b3069dc702cce9c5daf77bb5c93f45">here</a>.</td>
-          <td><em class="warning">It is required to send the ADA, the PIGY, and the pig images in the same transaction.</em> Here is how to do that in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-blend.png"><img src="daedalus-annotated-blend.png"/></a></td>
+          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-blend.png"><img src="daedalus-annotated-blend.png"/></a></td>
           <td id="example-blending"><a target="pigy-genetics" href="example-blending.png"><img src="example-blending.png"/></a></td>
         </tr>
         <tr>
           <td>Burning</td>
           <td>Send 2.0 ADA and 1 PIGY and <em>one pig image token</em> to the address above, in order to burn the pig image token and soon receive back the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/1756e4a3c6a3a67e34c2b8f64faccc349061f2eb87964fbf7841853d38d4ead9">here</a>.</td>
-          <td><em class="warning">It is required to send the ADA, the PIGY, and the pig image in the same transaction.</em> Here is how to do that in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-burn.png"><img src="daedalus-annotated-burn.png"/></a></td>
+          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-burn.png"><img src="daedalus-annotated-burn.png"/></a></td>
           <td id="example-burning"><a target="pigy-genetics" href="example-burning.png"><img src="example-burning.png"/></a></td>
         </tr>
       </tbody>
@@ -111,7 +108,7 @@
         </tr>
         <tr>
           <td>Blend four or more pig image<br/>tokens into a newly minted one.</td>
-          <td>2 ADA plus 0.5 ADA<br/>for each image token.</td>
+          <td>1.5 ADA plus 0.5 ADA<br/>for each image token.</td>
           <td>1</td>
           <td>4+</td>
           <td>original minus<br/>transaction fee</td>
@@ -123,9 +120,9 @@
         <tr>
           <td colspan="7"><strong class="warning">Warnings:</strong>
             <ul>
-              <li>The ADA, the PIGY, and any pig image tokens must be sent together in the same transaction.</li>
               <li>If less ADA than the minimum specified in the table above is provided or if no PIGY is provided, then no image token will be sent back.</li>
               <li>Sending more than one PIGY in the transaction does not mint multiple pig image tokens.</li>
+              <li>It is preferable to send all of the tokens in a single transaction. When sending them in separate transactions, the mininting will occur as soon as sufficient PIGY and ADA are received. Therefore, please send the PIGY as the last transaction in the series.</li>
             </ul>
           </td>
         </tr>

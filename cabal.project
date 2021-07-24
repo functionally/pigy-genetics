@@ -59,8 +59,8 @@ package ouroboros-network-framework
 source-repository-package
   type: git
   location: https://bitbucket.org/functionally/mantis
-  tag: fcd83770f17a37123fe1b81105d7aaf5df0fbdee
-  --sha256: 0a9gyqf0bw3n2aqhbhgxyra4yfi9vk6p4pps8ycing4bs5n0lw6w
+  tag: 82ae33c14fa23336ce802b4130c8ed5b8f96f508
+  --sha256: 0h810bi68c79d0yvgfv182vpczhs77wna6z2fxz24jag49f52x36
 
 
 source-repository-package
