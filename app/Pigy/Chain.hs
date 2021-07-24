@@ -102,59 +102,62 @@ runChain context@Context{..} =
               putStrLn ""
               putStrLn "First idling."
               writeIORef activeRef True
-          pending <- readIORef pendingRef
-          sequence_
-            [
-              createToken [output] (head sources, value)
-            |
-              (output, (sources, value)) <- M.toList pending
-            , checkValue token scriptHash value
-            ]
-          sequence_
-            [
-              do
-                when (verbose || valid)
-                  $ do
-                    putStrLn ""
-                    putStrLn "Multiple input transactions:"
-                    putStrLn $ "  Stake: " ++ show stake
-                    sequence_
-                      [
-                        putStrLn $ "  Source: " ++ show (showAddressMary source')
-                      |
-                        source' <- sources
-                      ]
-                    putStrLn $ "  Valid: " ++ show valid
-                    printValueIO "  " value
-                when valid
-                  $ createToken outputs (head sources, value)
-            |
-              let pending' = M.fromListWith
-                               (
-                                 \(outputs, sources, value) (outputs', sources', value') ->
-                                   (
-                                     outputs <> outputs'
-                                   , sources <> sources'
-                                   , value   <> value'
-                                   )
-                               )
-                               . map
-                               (
-                                 \(output, (sources, value)) ->
-                                   (
-                                     show . stakeReferenceMary $ head sources
-                                   , (
-                                       [output]
-                                     , sources
-                                     , value
+          do
+            pending <- readIORef pendingRef
+            sequence_
+              [
+                createToken [output] (head sources, value)
+              |
+                (output, (sources, value)) <- M.toList pending
+              , checkValue token scriptHash value
+              ]
+          do
+            pending <- readIORef pendingRef
+            sequence_
+              [
+                do
+                  when (verbose || valid)
+                    $ do
+                      putStrLn ""
+                      putStrLn "Multiple input transactions:"
+                      putStrLn $ "  Stake: " ++ show stake
+                      sequence_
+                        [
+                          putStrLn $ "  Source: " ++ show (showAddressMary source')
+                        |
+                          source' <- sources
+                        ]
+                      putStrLn $ "  Valid: " ++ show valid
+                      printValueIO "  " value
+                  when valid
+                    $ createToken outputs (head sources, value)
+              |
+                let pending' = M.fromListWith
+                                 (
+                                   \(outputs, sources, value) (outputs', sources', value') ->
+                                     (
+                                       outputs <> outputs'
+                                     , sources <> sources'
+                                     , value   <> value'
                                      )
-                                   )
-                               )
-                               $ M.toList pending
-            , (stake, (outputs, sources, value)) <- M.toList pending'
-            , let valid = checkValue token scriptHash value
-            , stake /= show NoStakeAddress
-            ]
+                                 )
+                                 . map
+                                 (
+                                   \(output, (sources, value)) ->
+                                     (
+                                       show . stakeReferenceMary $ head sources
+                                     , (
+                                         [output]
+                                       , sources
+                                       , value
+                                       )
+                                     )
+                                 )
+                                 $ M.toList pending
+              , (stake, (outputs, sources, value)) <- M.toList pending'
+              , let valid = checkValue token scriptHash value
+              , stake /= show NoStakeAddress
+              ]
           return False
       blockHandler (BlockHeader slot _ _) _ =
         do
@@ -233,6 +236,7 @@ runChain context@Context{..} =
           printValueIO "  " value
           sequence_
             [
+              -- FIXME: Consider deleting the transactions only if the minting succeeeds.
               do
                 modifyIORef sourceRef
                   (input `M.delete`)
