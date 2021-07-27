@@ -40,7 +40,6 @@ table {
 
 #examples-table td:nth-of-type(5) img {
   width         : 20vw
-; display       : none
 ; margin-top    : auto
 ; margin-bottom : auto
 ; vertical-align: center
