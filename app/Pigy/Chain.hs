@@ -88,9 +88,43 @@ runChain context@Context{..} =
             slot = toSlotNo point
           putStrLn ""
           putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show slot0
+          do
+            putStrLn "  Prior pending:"
+            pending' <- readIORef pendingRef
+            sequence_
+              [
+                do
+                  putStrLn $ "    " ++ show output
+                  sequence_
+                    [
+                      putStrLn $ "      Source: " ++ show (showAddressMary source')
+                    |
+                      source' <- sources
+                    ]
+                  printValueIO "      " value
+              |
+                (output, (sources, value)) <- M.toList pending'
+              ]
           modifyIORef historyRef
             $ rollback slot
           (_, (source, pending)) <- head <$> readIORef historyRef
+          do
+            putStrLn "  Posterior pending:"
+            pending' <- readIORef pendingRef
+            sequence_
+              [
+                do
+                  putStrLn $ "    " ++ show output
+                  sequence_
+                    [
+                      putStrLn $ "      Source: " ++ show (showAddressMary source')
+                    |
+                      source' <- sources
+                    ]
+                  printValueIO "      " value
+              |
+                (output, (sources, value)) <- M.toList pending'
+              ]
           writeIORef slotRef slot
           writeIORef sourceRef  source
           writeIORef pendingRef pending
@@ -328,7 +362,7 @@ mint Context{..} txIns destination value message =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "Burnt token: " ++ BS.unpack (head pigs)
+               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -339,10 +373,10 @@ mint Context{..} txIns destination value message =
                  liftIO
                    $ if null pigs
                        then do
-                              putStrLn "New token."
+                              putStrLn "  New token."
                               newGenotype gRandom
                        else do
-                              putStrLn $ "Crossover token: " ++ show (BS.unpack <$> pigs)
+                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
                (chromosome, cid) <- pinImage ipfsPin images genotype
                let
