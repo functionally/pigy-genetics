@@ -11,11 +11,13 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), Quantity(..), ScriptHash, ShelleyWitnessSigningKey(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
+import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), Quantity(..), ScriptHash, ScriptInEra(..), ShelleyWitnessSigningKey(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad                                     (unless, when)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
-import Data.IORef                                        (modifyIORef, newIORef, readIORef, writeIORef)
+import Control.Monad.State.Strict                        (MonadState(..), StateT(..), modify)
+import Data.Default                                      (Default(..))
+import Data.IORef                                        (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe                                        (mapMaybe)
 import Mantis.Chain                                      (watchTransactions)
 import Mantis.Query                                      (submitTransaction)
@@ -29,42 +31,363 @@ import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
 
 import qualified Data.ByteString.Char8 as BS  (ByteString, drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M   (Map, delete, empty, fromList, fromListWith, insert, lookup, member, toList)
+import qualified Data.Map.Strict       as M   (Map, delete, empty, fromList, fromListWith, insert, lookup, member, null, toList)
 import qualified Data.Text             as T   (pack)
 
 
+type MaryAddress = AddressInEra MaryEra
+
+
+type MaryScript = ScriptInEra MaryEra
+
+
+-- | Map of origins of transactions.
+type Origins = M.Map TxIn MaryAddress
+
+
+-- | Map of transactions that to be processed.
+type Pendings = M.Map TxIn ([MaryAddress], Value)
+
+
+-- | History of transaction origins and pending transactions.
+type History = [(SlotNo, (Origins, Pendings))]
+
+
+-- | The Ouroboros security parameter.
 kSecurity :: Int
 kSecurity = 2160
 
 
-type History = [(SlotNo, (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn ([AddressInEra MaryEra], Value)))]
-
-
 record :: SlotNo
-       -> (M.Map TxIn (AddressInEra MaryEra), M.Map TxIn ([AddressInEra MaryEra], Value))
+       -> (Origins, Pendings)
        -> History
        -> History
-record slot sourcePending history =
-  take kSecurity
-    $ (slot, sourcePending)
-    : history
+record slot sourcePending = take kSecurity . ((slot, sourcePending) :)
 
 
 rollback :: SlotNo
          -> History
          -> History
-rollback slot =
-    dropWhile
-      $ (/= slot)
-      . fst
+rollback slot = dropWhile $ (/= slot) . fst
 
 
 toSlotNo :: ChainPoint
          -> SlotNo
 toSlotNo point =
+  -- FIXME: Use safe way to find the slot number at a chain point.
   case show point of
     "ChainPointAtGenesis" -> SlotNo 0
     text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
+
+
+data ChainState =
+  ChainState
+  {
+    context       :: Context
+  , active        :: Bool
+  , current       :: SlotNo
+  , origins       :: Origins
+  , pendings      :: Pendings
+  , history       :: History
+  , scriptAddress :: MaryAddress
+  , script        :: MaryScript
+  , scriptHash    :: ScriptHash
+  , checker       :: Value -> Bool
+  }
+
+instance Default ChainState where
+  def =
+    ChainState
+    {
+      context       = undefined
+    , active        = False
+    , current       = SlotNo 0
+    , origins       = M.empty
+    , pendings      = M.empty
+    , history       = [(SlotNo 0, (M.empty, M.empty))]
+    , scriptAddress = undefined
+    , script        = undefined
+    , scriptHash    = undefined
+    , checker       = undefined
+    }
+
+
+type Chain a = StateT ChainState IO a
+
+
+withChainState :: IORef ChainState
+               -> Chain a
+               -> IO a
+withChainState ref transition =
+  do
+    initial <- readIORef ref
+    (result, final) <- runStateT transition initial
+    writeIORef ref final
+    return result
+
+
+makeActive :: Chain ()
+makeActive =
+  do
+    ChainState{..} <- get
+    unless active
+      $ do
+        liftIO
+          $ do
+            putStrLn ""
+            putStrLn "First idling."
+        modify
+          $ \x -> x {active = True}
+
+
+recordBlock :: SlotNo
+            -> Chain ()
+recordBlock slot =
+  do
+    ChainState{..} <- get
+    when (verbose context && active)
+      . liftIO
+      $ do
+        putStrLn ""
+        putStrLn $ "New block: " ++ show current ++ " -> " ++ show slot
+    modify
+      $ \x ->
+        x {
+            current = slot
+          , history = record current (origins, pendings) history
+          }
+
+
+recordRollback :: SlotNo
+               -> Chain ()
+recordRollback slot =
+  do
+    ChainState{..} <- get
+    liftIO
+      $ do
+        putStrLn ""
+        putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
+    printPending "    Prior pendings:"
+    let
+      history'@((_, (origins', pendings')) : _) = rollback slot history
+    modify
+      $ \x -> x {
+                  current  = slot
+                , origins  = origins'
+                , pendings = pendings'
+                , history  = history'
+                }
+    printPending "    Posterior pendings:"
+
+
+recordInput :: SlotNo
+            -> TxIn
+            -> Chain ()
+recordInput slot txIn =
+  do
+    ChainState{..} <- get
+    let
+      found     = txIn `M.member` origins
+      isPending = txIn `M.member` pendings
+    when found
+      $ do
+        when (verbose context || isPending)
+          . liftIO
+          $ do
+            putStrLn ""
+            putStrLn $ show slot ++ ": spent " ++ show txIn
+        state
+          $ \x ->
+            (
+              ()
+            , x {
+                  origins  = txIn `M.delete` origins
+                , pendings = txIn `M.delete` pendings
+                }
+            )
+
+
+recordOutput :: [TxIn]
+             -> TxIn
+             -> MaryAddress
+             -> Value
+             -> Chain ()
+recordOutput inputs output destination value =
+  do
+    ChainState{..} <- get
+    modify
+      $ \x -> x {origins = M.insert output destination origins}
+    let
+      sources = mapMaybe (`M.lookup` origins) inputs
+      valid = checker value
+    when (verbose context || destination == scriptAddress)
+      . liftIO
+      $ do
+        putStrLn ""
+        putStrLn $ "Output: " ++ show output
+        sequence_
+          [
+            putStrLn $ "  Source: " ++ show (showAddressMary source')
+          |
+            source' <- sources
+          ]
+        putStrLn $ "  Destination: " ++ showAddressMary destination
+        putStrLn $ "  Stake: " ++ show (stakeReferenceMary destination)
+        putStrLn $ "  To me: " ++ show (destination == scriptAddress)
+        putStrLn $ "  Valid: " ++ show valid
+        printValueIO "  " value
+    when (destination == scriptAddress && not (null sources))
+      $ if active && valid
+          then createToken [output] (head sources, value)
+          else do
+                 liftIO $ putStrLn "  Queued for creation."
+                 modify $ \x -> x {pendings = M.insert output (sources, value) pendings}
+
+
+createPendingSingle :: Chain ()
+createPendingSingle =
+  do
+    ChainState{..} <- get
+    sequence_
+      [
+        createToken [output] (head sources, value)
+      |
+        (output, (sources, value)) <- M.toList pendings
+      , checker value
+      ]
+
+
+createPendingMultiple :: Chain ()
+createPendingMultiple =
+  do
+    ChainState{..} <- get
+    sequence_
+      [
+        do
+          when (verbose context || valid)
+            . liftIO
+            $ do
+              putStrLn ""
+              putStrLn "Multiple input transactions:"
+              putStrLn $ "  Stake: " ++ stake
+              sequence_
+                [
+                  putStrLn $ "  Source: " ++ show (showAddressMary source)
+                |
+                  source <- sources
+                ]
+              putStrLn $ "  Valid: " ++ show valid
+              printValueIO "  " value
+          when valid
+            $ createToken outputs (head sources, value)
+      |
+        let pending' = M.fromListWith
+                         (
+                           \(outputs, sources, value) (outputs', sources', value') ->
+                             (
+                               outputs <> outputs'
+                             , sources <> sources'
+                             , value   <> value'
+                             )
+                         )
+                         . map
+                         (
+                           \(output, (sources, value)) ->
+                             (
+                               show . stakeReferenceMary $ head sources
+                             , (
+                                 [output]
+                               , sources
+                               , value
+                               )
+                             )
+                         )
+                         $ M.toList pendings
+      , (stake, (outputs, sources, value)) <- M.toList pending'
+      , let valid = checker value
+      , stake /= show NoStakeAddress
+      ]
+
+
+createToken :: [TxIn]
+            -> (MaryAddress, Value)
+            -> Chain ()
+createToken inputs (destination, value) =
+  do
+    ChainState{..} <- get
+    liftIO
+      $ do
+        putStrLn ""
+        putStrLn "Minting token."
+        sequence_
+          [
+            putStrLn $ "  Input: " ++ show input
+          |
+            input <- inputs
+          ]
+        putStrLn $ "  Destination: " ++ showAddressMary destination
+        putStrLn $ "  To me: "++ show (destination == scriptAddress)
+        printValueIO "  " value
+    sequence_
+      [
+        -- FIXME: Consider deleting the transactions only if the minting succeeeds.
+        modify
+          $ \x -> x {
+                      origins  = input `M.delete` origins
+                    , pendings = input `M.delete` pendings
+                    }
+      |
+        input <-inputs
+      ]
+    unless (destination == scriptAddress)
+      $ liftIO $ do
+        let
+          message =
+            case (selectAsset value $ token context, length inputs) of
+              (1, 1) -> [
+                          "Thank you!"
+                        ]
+              (1, _) -> [
+                          "Please send the tokens and ADA in a single transaction."
+                        ]
+              (_, 1) -> [
+                          "There is a limit of one minting per transaction."
+                        , "Sending more that one PIGY does not mint more pig images."
+                        ]
+              (_, _) -> [
+                          "There is a limit of one minting per transaction."
+                        , "Sending more that one PIGY does not mint more pig images."
+                        , "Also, please send the tokens and ADA in a single transaction."
+                        ]
+        result <- runMantisToIO $ mint context inputs destination value message
+        case result of
+          Right () -> return ()
+          Left  e  -> putStrLn $ "  " ++ e
+
+
+printPending :: String
+             -> Chain ()
+printPending message =
+  do
+    ChainState{..} <- get
+    unless (M.null pendings)
+      .  liftIO
+      $ do
+        putStrLn message
+        sequence_
+          [
+            do
+              putStrLn $ "    " ++ show output
+              sequence_
+                [
+                  putStrLn $ "      Source: " ++ show (showAddressMary source)
+                |
+                  source <- sources
+                ]
+              printValueIO "      " value
+          |
+            (output, (sources, value)) <- M.toList pendings
+          ]
 
 
 runChain :: MonadFail m
@@ -73,236 +396,45 @@ runChain :: MonadFail m
          -> MantisM m ()
 runChain context@Context{..} =
   do
-    activeRef  <- liftIO $ newIORef False
-    sourceRef  <- liftIO $ newIORef M.empty
-    pendingRef <- liftIO $ newIORef M.empty
-    historyRef <- liftIO $ newIORef [(SlotNo 0, (M.empty, M.empty))]
-    slotRef    <- liftIO . newIORef $ SlotNo 0
     let
       KeyedAddress{..} = keyedAddress
-      (_, scriptHash) = mintingScript verificationHash Nothing
-      rollbackHandler point _ =
-        do
-          slot0 <- readIORef slotRef
-          let
-            slot = toSlotNo point
-          putStrLn ""
-          putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show slot0
-          do
-            putStrLn "  Prior pending:"
-            pending' <- readIORef pendingRef
-            sequence_
-              [
-                do
-                  putStrLn $ "    " ++ show output
-                  sequence_
-                    [
-                      putStrLn $ "      Source: " ++ show (showAddressMary source')
-                    |
-                      source' <- sources
-                    ]
-                  printValueIO "      " value
-              |
-                (output, (sources, value)) <- M.toList pending'
-              ]
-          modifyIORef historyRef
-            $ rollback slot
-          (_, (source, pending)) <- head <$> readIORef historyRef
-          do
-            putStrLn "  Posterior pending:"
-            pending' <- readIORef pendingRef
-            sequence_
-              [
-                do
-                  putStrLn $ "    " ++ show output
-                  sequence_
-                    [
-                      putStrLn $ "      Source: " ++ show (showAddressMary source')
-                    |
-                      source' <- sources
-                    ]
-                  printValueIO "      " value
-              |
-                (output, (sources, value)) <- M.toList pending'
-              ]
-          writeIORef slotRef slot
-          writeIORef sourceRef  source
-          writeIORef pendingRef pending
-      idleHandler =
-        do
-          active <- readIORef activeRef
-          unless active
-            $ do
-              putStrLn ""
-              putStrLn "First idling."
-              writeIORef activeRef True
-          do
-            pending <- readIORef pendingRef
-            sequence_
-              [
-                createToken [output] (head sources, value)
-              |
-                (output, (sources, value)) <- M.toList pending
-              , checkValue token scriptHash value
-              ]
-          do
-            pending <- readIORef pendingRef
-            sequence_
-              [
-                do
-                  when (verbose || valid)
-                    $ do
-                      putStrLn ""
-                      putStrLn "Multiple input transactions:"
-                      putStrLn $ "  Stake: " ++ stake
-                      sequence_
-                        [
-                          putStrLn $ "  Source: " ++ show (showAddressMary source')
-                        |
-                          source' <- sources
-                        ]
-                      putStrLn $ "  Valid: " ++ show valid
-                      printValueIO "  " value
-                  when valid
-                    $ createToken outputs (head sources, value)
-              |
-                let pending' = M.fromListWith
-                                 (
-                                   \(outputs, sources, value) (outputs', sources', value') ->
-                                     (
-                                       outputs <> outputs'
-                                     , sources <> sources'
-                                     , value   <> value'
-                                     )
-                                 )
-                                 . map
-                                 (
-                                   \(output, (sources, value)) ->
-                                     (
-                                       show . stakeReferenceMary $ head sources
-                                     , (
-                                         [output]
-                                       , sources
-                                       , value
-                                       )
-                                     )
-                                 )
-                                 $ M.toList pending
-              , (stake, (outputs, sources, value)) <- M.toList pending'
-              , let valid = checkValue token scriptHash value
-              , stake /= show NoStakeAddress
-              ]
-          return False
+      (script, scriptHash) = mintingScript verificationHash Nothing
+    chainState <-
+      liftIO
+        . newIORef
+        $ def
+          {
+            context       = context
+          , scriptAddress = keyAddress
+          , script        = script
+          , scriptHash    = scriptHash
+          , checker       = checkValue token scriptHash
+          }
+    let
       blockHandler (BlockHeader slot _ _) _ =
-        do
-          active <- readIORef activeRef
-          slot0 <- readIORef slotRef
-          when (verbose && active)
-            $ do
-              putStrLn ""
-              putStrLn $ "New block: " ++ show slot0 ++ " -> " ++ show slot
-          source  <- readIORef sourceRef
-          pending <- readIORef pendingRef
-          modifyIORef historyRef
-            $ record slot0 (source, pending)
-          writeIORef slotRef slot
+        withChainState chainState
+          $ recordBlock slot
+      rollbackHandler point _ =
+        withChainState chainState
+          . recordRollback
+          $ toSlotNo point
+      idleHandler =
+        withChainState chainState
+          $ do
+            makeActive
+            createPendingSingle
+            createPendingMultiple
+            return False
       inHandler (BlockHeader slot _ _) txIn =
-        do
-          found <- (txIn `M.member`) <$> readIORef sourceRef
-          when found
-            $ do
-              isPending <- (txIn `M.member`) <$> readIORef pendingRef
-              when (verbose || isPending)
-                $ do
-                  putStrLn ""
-                  putStrLn $ show slot ++ ": spent " ++ show txIn
-              modifyIORef sourceRef
-                (txIn `M.delete`)
-              modifyIORef pendingRef
-                (txIn `M.delete`)
+        withChainState chainState
+          $ recordInput slot txIn
       outHandler _ inputs output (TxOut destination txOutValue) =
         case txOutValue of
           TxOutValue _ value ->
             when (selectAsset value token > 0 || destination == keyAddress)
-              $ do
-                active <- readIORef activeRef
-                source <- readIORef sourceRef
-                modifyIORef sourceRef
-                  $ M.insert output destination
-                let
-                  sources = mapMaybe (`M.lookup` source) inputs
-                  valid = checkValue token scriptHash value
-                when (verbose || destination == keyAddress)
-                  $ do
-                    putStrLn ""
-                    putStrLn $ "Output: " ++ show output
-                    sequence_
-                      [
-                        putStrLn $ "  Source: " ++ show (showAddressMary source')
-                      |
-                        source' <- sources
-                      ]
-                    putStrLn $ "  Destination: " ++ showAddressMary destination
-                    putStrLn $ "  Stake: " ++ show (stakeReferenceMary destination)
-                    putStrLn $ "  To me: " ++ show (destination == keyAddress)
-                    putStrLn $ "  Valid: " ++ show valid
-                    printValueIO "  " value
-                when (destination == keyAddress && not (null sources))
-                  $ if active && valid
-                      then createToken [output] (head sources, value)
-                      else do
-                             putStrLn "  Queued for creation."
-                             modifyIORef pendingRef
-                               $ M.insert output (sources, value)
+              . withChainState chainState
+              $ recordOutput inputs output destination value
           _ -> return ()
-      createToken inputs (destination, value) =
-        do
-          putStrLn ""
-          putStrLn "Minting token."
-          sequence_
-            [
-              putStrLn $ "  Input: " ++ show input
-            |
-              input <- inputs
-            ]
-          putStrLn $ "  Destination: " ++ showAddressMary destination
-          putStrLn $ "  To me: "++ show (destination == keyAddress)
-          printValueIO "  " value
-          sequence_
-            [
-              -- FIXME: Consider deleting the transactions only if the minting succeeeds.
-              do
-                modifyIORef sourceRef
-                  (input `M.delete`)
-                modifyIORef pendingRef
-                  (input `M.delete`)
-            |
-              input <-inputs
-            ]
-          unless (destination == keyAddress)
-            $ do
-              let
-                message =
-                  case (selectAsset value token, length inputs) of
-                    (1, 1) -> [
-                                "Thank you!"
-                              ]
-                    (1, _) -> [
-                                "Please send the tokens and ADA in a single transaction."
-                              ]
-                    (_, 1) -> [
-                                "There is a limit of one minting per transaction."
-                              , "Sending more that one PIGY does not mint more pig images."
-                              ]
-                    (_, _) -> [
-                                "There is a limit of one minting per transaction."
-                              , "Sending more that one PIGY does not mint more pig images."
-                              , "Also, please send the tokens and ADA in a single transaction."
-                              ]
-              result <- runMantisToIO $ mint context inputs destination value message
-              case result of
-                Right () -> return ()
-                Left  e  -> putStrLn $ "  " ++ e
     watchTransactions
       socket
       protocol
@@ -349,7 +481,7 @@ mint :: MonadFail m
      => MonadIO m
      => Context
      -> [TxIn]
-     -> AddressInEra MaryEra
+     -> MaryAddress
      -> Value
      -> [String]
      -> MantisM m ()

@@ -27,6 +27,7 @@ executable pigy-genetics
                   , cardano-api
                   , colour
                   , containers
+                  , data-default
                   , filepath
                   , JuicyPixels
                   , mantis
