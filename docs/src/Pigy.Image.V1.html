@@ -1,0 +1,1496 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Version 1 of the pig-image genotype and phenotype.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE RecordWildCards       #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Pigy.Image.V1</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- * Versioning</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier">gid</span></a></span><span>
+</span><span id="line-24"></span><span class="annot"><span class="hs-comment">-- * Genetics</span></span><span>
+</span><span id="line-25"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier">Genotype</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier">Phenotype</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#crossover"><span class="hs-identifier">crossover</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Codec.Picture</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">PixelRGBA8</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">replicateM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Binary</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Binary</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Colour.RGBSpace.HSL</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">hsl</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Colour.SRGB</span></span><span>         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">RGB</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Fixed</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">mod'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html"><span class="hs-identifier">Pigy.Image.Types</span></a></span><span>         </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.Types.html#Phenable"><span class="hs-identifier">Phenable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier">Phenotype</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Upgradeable"><span class="hs-identifier">Upgradeable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Uniform</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Internal</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">uniformM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uniformRM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Stateful</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StatefulGen</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | The version of the genotype.</span><span>
+</span><span id="line-45"></span><span class="annot"><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier hs-type">gid</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-46"></span><span id="gid"><span class="annot"><span class="annottext">gid :: Word8
+</span><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier hs-var hs-var">gid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- | The genotype.</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">data</span><span> </span><span id="Genotype"><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-var">Genotype</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-51"></span><span>  </span><span id="Genotype"><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-var">Genotype</span></a></span></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-53"></span><span>    </span><span id="ar"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#ar"><span class="hs-identifier hs-var hs-var">ar</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Aspect ratio.</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="headx"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#headx"><span class="hs-identifier hs-var hs-var">headx</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Head width.</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="heady"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#heady"><span class="hs-identifier hs-var hs-var">heady</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Head height.</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyex"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyex"><span class="hs-identifier hs-var hs-var">eyex</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Eye width.</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyey"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyey"><span class="hs-identifier hs-var hs-var">eyey</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Eye height.</span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="nosex"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosex"><span class="hs-identifier hs-var hs-var">nosex</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Nose width.</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="nosey"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosey"><span class="hs-identifier hs-var hs-var">nosey</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Nose height.</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="earx"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#earx"><span class="hs-identifier hs-var hs-var">earx</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Ear width.</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eary"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eary"><span class="hs-identifier hs-var hs-var">eary</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Ear height.</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="torso"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#torso"><span class="hs-identifier hs-var hs-var">torso</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Torso size.</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="skinh"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#skinh"><span class="hs-identifier hs-var hs-var">skinh</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Skin hue.</span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyeh"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyeh"><span class="hs-identifier hs-var hs-var">eyeh</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Eye hue.</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyes"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyes"><span class="hs-identifier hs-var hs-var">eyes</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Eye saturation.</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyel"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyel"><span class="hs-identifier hs-var hs-var">eyel</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Eye luminosity.</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="pupilh"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupilh"><span class="hs-identifier hs-var hs-var">pupilh</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Pupil hue.</span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="pupils"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupils"><span class="hs-identifier hs-var hs-var">pupils</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Pupil saturation.</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="pupill"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupill"><span class="hs-identifier hs-var hs-var">pupill</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Pupil luminosity.</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="noseh"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#noseh"><span class="hs-identifier hs-var hs-var">noseh</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Nose hue.</span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="noses"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#noses"><span class="hs-identifier hs-var hs-var">noses</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Nose saturation.</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="nosel"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosel"><span class="hs-identifier hs-var hs-var">nosel</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Nose luminosity.</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyea"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyea"><span class="hs-identifier hs-var hs-var">eyea</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Pupil radial angle.</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="eyef"><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyef"><span class="hs-identifier hs-var hs-var">eyef</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-comment">-- ^ Pupil radial position.</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218354"><span id="local-6989586621679218356"><span class="annot"><span class="annottext">Genotype -&gt; Genotype -&gt; Bool
+(Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool) -&gt; Eq Genotype
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Genotype -&gt; Genotype -&gt; Bool
+$c/= :: Genotype -&gt; Genotype -&gt; Bool
+== :: Genotype -&gt; Genotype -&gt; Bool
+$c== :: Genotype -&gt; Genotype -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218338"><span id="local-6989586621679218340"><span id="local-6989586621679218342"><span id="local-6989586621679218344"><span id="local-6989586621679218346"><span id="local-6989586621679218348"><span id="local-6989586621679218350"><span class="annot"><span class="annottext">Eq Genotype
+Eq Genotype
+-&gt; (Genotype -&gt; Genotype -&gt; Ordering)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Genotype)
+-&gt; (Genotype -&gt; Genotype -&gt; Genotype)
+-&gt; Ord Genotype
+Genotype -&gt; Genotype -&gt; Bool
+Genotype -&gt; Genotype -&gt; Ordering
+Genotype -&gt; Genotype -&gt; Genotype
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Genotype -&gt; Genotype -&gt; Genotype
+$cmin :: Genotype -&gt; Genotype -&gt; Genotype
+max :: Genotype -&gt; Genotype -&gt; Genotype
+$cmax :: Genotype -&gt; Genotype -&gt; Genotype
+&gt;= :: Genotype -&gt; Genotype -&gt; Bool
+$c&gt;= :: Genotype -&gt; Genotype -&gt; Bool
+&gt; :: Genotype -&gt; Genotype -&gt; Bool
+$c&gt; :: Genotype -&gt; Genotype -&gt; Bool
+&lt;= :: Genotype -&gt; Genotype -&gt; Bool
+$c&lt;= :: Genotype -&gt; Genotype -&gt; Bool
+&lt; :: Genotype -&gt; Genotype -&gt; Bool
+$c&lt; :: Genotype -&gt; Genotype -&gt; Bool
+compare :: Genotype -&gt; Genotype -&gt; Ordering
+$ccompare :: Genotype -&gt; Genotype -&gt; Ordering
+$cp1Ord :: Eq Genotype
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218329"><span id="local-6989586621679218331"><span id="local-6989586621679218333"><span id="local-6989586621679218335"><span class="annot"><span class="annottext">ReadPrec [Genotype]
+ReadPrec Genotype
+Int -&gt; ReadS Genotype
+ReadS [Genotype]
+(Int -&gt; ReadS Genotype)
+-&gt; ReadS [Genotype]
+-&gt; ReadPrec Genotype
+-&gt; ReadPrec [Genotype]
+-&gt; Read Genotype
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [Genotype]
+$creadListPrec :: ReadPrec [Genotype]
+readPrec :: ReadPrec Genotype
+$creadPrec :: ReadPrec Genotype
+readList :: ReadS [Genotype]
+$creadList :: ReadS [Genotype]
+readsPrec :: Int -&gt; ReadS Genotype
+$creadsPrec :: Int -&gt; ReadS Genotype
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218322"><span id="local-6989586621679218324"><span id="local-6989586621679218326"><span class="annot"><span class="annottext">Int -&gt; Genotype -&gt; ShowS
+[Genotype] -&gt; ShowS
+Genotype -&gt; String
+(Int -&gt; Genotype -&gt; ShowS)
+-&gt; (Genotype -&gt; String) -&gt; ([Genotype] -&gt; ShowS) -&gt; Show Genotype
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Genotype] -&gt; ShowS
+$cshowList :: [Genotype] -&gt; ShowS
+show :: Genotype -&gt; String
+$cshow :: Genotype -&gt; String
+showsPrec :: Int -&gt; Genotype -&gt; ShowS
+$cshowsPrec :: Int -&gt; Genotype -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Upgradeable"><span class="hs-identifier hs-type">Upgradeable</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-79"></span><span>  </span><span id="local-6989586621679218318"><span class="annot"><span class="annottext">upgrade :: Genotype -&gt; Genotype
+</span><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var hs-var hs-var hs-var">upgrade</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenable"><span class="hs-identifier hs-type">Phenable</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-82"></span><span>  </span><span id="local-6989586621679218313"><span class="annot"><span class="annottext">toPhenotype :: Genotype -&gt; Phenotype
+</span><a href="Pigy.Image.Types.html#toPhenotype"><span class="hs-identifier hs-var hs-var hs-var hs-var">toPhenotype</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">{</span><span id="local-6989586621679218290"><span id="local-6989586621679218291"><span id="local-6989586621679218292"><span id="local-6989586621679218293"><span id="local-6989586621679218294"><span id="local-6989586621679218295"><span id="local-6989586621679218296"><span id="local-6989586621679218297"><span id="local-6989586621679218298"><span id="local-6989586621679218299"><span id="local-6989586621679218300"><span id="local-6989586621679218301"><span id="local-6989586621679218302"><span id="local-6989586621679218303"><span id="local-6989586621679218304"><span id="local-6989586621679218305"><span id="local-6989586621679218306"><span id="local-6989586621679218307"><span id="local-6989586621679218308"><span id="local-6989586621679218309"><span id="local-6989586621679218310"><span id="local-6989586621679218311"><span class="annot"><span class="annottext">Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+torso :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+ar :: Float
+eyef :: Genotype -&gt; Float
+eyea :: Genotype -&gt; Float
+nosel :: Genotype -&gt; Float
+noses :: Genotype -&gt; Float
+noseh :: Genotype -&gt; Float
+pupill :: Genotype -&gt; Float
+pupils :: Genotype -&gt; Float
+pupilh :: Genotype -&gt; Float
+eyel :: Genotype -&gt; Float
+eyes :: Genotype -&gt; Float
+eyeh :: Genotype -&gt; Float
+skinh :: Genotype -&gt; Float
+torso :: Genotype -&gt; Float
+eary :: Genotype -&gt; Float
+earx :: Genotype -&gt; Float
+nosey :: Genotype -&gt; Float
+nosex :: Genotype -&gt; Float
+eyey :: Genotype -&gt; Float
+eyex :: Genotype -&gt; Float
+heady :: Genotype -&gt; Float
+headx :: Genotype -&gt; Float
+ar :: Genotype -&gt; Float
+</span><a href="#local-6989586621679218290"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-84"></span><span>      </span><span id="local-6989586621679218289"><span class="annot"><span class="annottext">hsl2rgb :: a -&gt; a -&gt; a -&gt; PixelRGBA8
+</span><a href="#local-6989586621679218289"><span class="hs-identifier hs-var hs-var">hsl2rgb</span></a></span></span><span> </span><span id="local-6989586621679218288"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218288"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span id="local-6989586621679218287"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218287"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679218286"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218286"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-85"></span><span>        </span><span class="hs-keyword">let</span><span>
+</span><span id="line-86"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">RGB</span></span><span class="hs-special">{</span><span id="local-6989586621679218282"><span id="local-6989586621679218283"><span id="local-6989586621679218284"><span class="annot"><span class="annottext">a
+channelRed :: forall a. RGB a -&gt; a
+channelGreen :: forall a. RGB a -&gt; a
+channelBlue :: forall a. RGB a -&gt; a
+channelBlue :: a
+channelGreen :: a
+channelRed :: a
+</span><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var">..</span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a -&gt; RGB a
+forall a. (RealFrac a, Ord a) =&gt; a -&gt; a -&gt; a -&gt; RGB a
+</span><span class="hs-identifier hs-var">hsl</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218288"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218287"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218286"><span class="hs-identifier hs-var">l</span></a></span><span>
+</span><span id="line-87"></span><span>          </span><span id="local-6989586621679218278"><span class="annot"><span class="annottext">q :: a -&gt; b
+</span><a href="#local-6989586621679218278"><span class="hs-identifier hs-var hs-var">q</span></a></span></span><span> </span><span id="local-6989586621679218277"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218277"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; a -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">255</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218277"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-88"></span><span>        </span><span class="hs-keyword">in</span><span>
+</span><span id="line-89"></span><span>          </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Word8 -&gt; Word8 -&gt; PixelRGBA8
+</span><span class="hs-identifier hs-var">PixelRGBA8</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Word8
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><a href="#local-6989586621679218278"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218284"><span class="hs-identifier hs-var">channelRed</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Word8
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><a href="#local-6989586621679218278"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218283"><span class="hs-identifier hs-var">channelGreen</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Word8
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><a href="#local-6989586621679218278"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218282"><span class="hs-identifier hs-var">channelBlue</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0xFF</span></span><span>
+</span><span id="line-90"></span><span>      </span><span id="local-6989586621679218273"><span class="annot"><span class="annottext">skinHue :: Float
+</span><a href="#local-6989586621679218273"><span class="hs-identifier hs-var hs-var">skinHue</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218301"><span class="hs-identifier hs-var">skinh</span></a></span><span>
+</span><span id="line-91"></span><span>      </span><span id="local-6989586621679218272"><span class="annot"><span class="annottext">eyeColor :: PixelRGBA8
+</span><a href="#local-6989586621679218272"><span class="hs-identifier hs-var hs-var">eyeColor</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float -&gt; PixelRGBA8
+forall a. RealFrac a =&gt; a -&gt; a -&gt; a -&gt; PixelRGBA8
+</span><a href="#local-6989586621679218289"><span class="hs-identifier hs-var">hsl2rgb</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218300"><span class="hs-identifier hs-var">eyeh</span></a></span><span>  </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218299"><span class="hs-identifier hs-var">eyes</span></a></span><span>  </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218298"><span class="hs-identifier hs-var">eyel</span></a></span><span>
+</span><span id="line-92"></span><span>      </span><span id="local-6989586621679218271"><span class="annot"><span class="annottext">pupilColor :: PixelRGBA8
+</span><a href="#local-6989586621679218271"><span class="hs-identifier hs-var hs-var">pupilColor</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float -&gt; PixelRGBA8
+forall a. RealFrac a =&gt; a -&gt; a -&gt; a -&gt; PixelRGBA8
+</span><a href="#local-6989586621679218289"><span class="hs-identifier hs-var">hsl2rgb</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218297"><span class="hs-identifier hs-var">pupilh</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218296"><span class="hs-identifier hs-var">pupils</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218295"><span class="hs-identifier hs-var">pupill</span></a></span><span>
+</span><span id="line-93"></span><span>      </span><span id="local-6989586621679218270"><span class="annot"><span class="annottext">noseColor :: PixelRGBA8
+</span><a href="#local-6989586621679218270"><span class="hs-identifier hs-var hs-var">noseColor</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float -&gt; PixelRGBA8
+forall a. RealFrac a =&gt; a -&gt; a -&gt; a -&gt; PixelRGBA8
+</span><a href="#local-6989586621679218289"><span class="hs-identifier hs-var">hsl2rgb</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218294"><span class="hs-identifier hs-var">noseh</span></a></span><span>  </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218293"><span class="hs-identifier hs-var">noses</span></a></span><span>  </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218292"><span class="hs-identifier hs-var">nosel</span></a></span><span>
+</span><span id="line-94"></span><span>      </span><span id="local-6989586621679218269"><span class="annot"><span class="annottext">aspect :: Float
+</span><a href="#local-6989586621679218269"><span class="hs-identifier hs-var hs-var">aspect</span></a></span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218311"><span class="hs-identifier hs-var">ar</span></a></span><span>
+</span><span id="line-95"></span><span>      </span><span id="local-6989586621679218268"><span class="annot"><span class="annottext">headScale :: (Float, Float)
+</span><a href="#local-6989586621679218268"><span class="hs-identifier hs-var hs-var">headScale</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218310"><span class="hs-identifier hs-var">headx</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218309"><span class="hs-identifier hs-var">heady</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>      </span><span id="local-6989586621679218267"><span class="annot"><span class="annottext">eyeScale :: (Float, Float)
+</span><a href="#local-6989586621679218267"><span class="hs-identifier hs-var hs-var">eyeScale</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218308"><span class="hs-identifier hs-var">eyex</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218307"><span class="hs-identifier hs-var">eyey</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span>      </span><span id="local-6989586621679218266"><span class="annot"><span class="annottext">noseScale :: (Float, Float)
+</span><a href="#local-6989586621679218266"><span class="hs-identifier hs-var hs-var">noseScale</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218306"><span class="hs-identifier hs-var">nosex</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218305"><span class="hs-identifier hs-var">nosey</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>      </span><span id="local-6989586621679218265"><span class="annot"><span class="annottext">earScale :: (Float, Float)
+</span><a href="#local-6989586621679218265"><span class="hs-identifier hs-var hs-var">earScale</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218304"><span class="hs-identifier hs-var">earx</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218303"><span class="hs-identifier hs-var">eary</span></a></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>      </span><span id="local-6989586621679218264"><span class="annot"><span class="annottext">bodyScale :: Float
+</span><a href="#local-6989586621679218264"><span class="hs-identifier hs-var hs-var">bodyScale</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218302"><span class="hs-identifier hs-var">torso</span></a></span><span>
+</span><span id="line-100"></span><span>      </span><span id="local-6989586621679218263"><span class="annot"><span class="annottext">eyeAngle :: Float
+</span><a href="#local-6989586621679218263"><span class="hs-identifier hs-var hs-var">eyeAngle</span></a></span></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218291"><span class="hs-identifier hs-var">eyea</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Float
+forall a. Floating a =&gt; a
+</span><span class="hs-identifier hs-var">pi</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">180</span></span><span>
+</span><span id="line-101"></span><span>      </span><span id="local-6989586621679218260"><span class="annot"><span class="annottext">eyeFraction :: Float
+</span><a href="#local-6989586621679218260"><span class="hs-identifier hs-var hs-var">eyeFraction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218290"><span class="hs-identifier hs-var">eyef</span></a></span><span>
+</span><span id="line-102"></span><span>    </span><span class="hs-keyword">in</span><span>
+</span><span id="line-103"></span><span>      </span><span class="annot"><span class="annottext">Phenotype :: Float
+-&gt; PixelRGBA8
+-&gt; PixelRGBA8
+-&gt; PixelRGBA8
+-&gt; Float
+-&gt; (Float, Float)
+-&gt; (Float, Float)
+-&gt; (Float, Float)
+-&gt; (Float, Float)
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Phenotype
+</span><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier hs-type">Phenotype</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">Float
+(Float, Float)
+PixelRGBA8
+eyeFraction :: Float
+eyeAngle :: Float
+bodyScale :: Float
+earScale :: (Float, Float)
+noseScale :: (Float, Float)
+eyeScale :: (Float, Float)
+headScale :: (Float, Float)
+aspect :: Float
+noseColor :: PixelRGBA8
+pupilColor :: PixelRGBA8
+eyeColor :: PixelRGBA8
+skinHue :: Float
+eyeFraction :: Float
+eyeAngle :: Float
+bodyScale :: Float
+earScale :: (Float, Float)
+noseScale :: (Float, Float)
+eyeScale :: (Float, Float)
+headScale :: (Float, Float)
+aspect :: Float
+noseColor :: PixelRGBA8
+pupilColor :: PixelRGBA8
+eyeColor :: PixelRGBA8
+skinHue :: Float
+</span><a href="Pigy.Image.Types.html#eyeFraction"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679218243"><span class="annot"><span class="hs-identifier hs-type">Binary</span></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-106"></span><span>  </span><span id="local-6989586621679218241"><span class="annot"><span class="annottext">put :: Genotype -&gt; Put
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">put</span></span></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">{</span><span id="local-6989586621679218218"><span id="local-6989586621679218219"><span id="local-6989586621679218220"><span id="local-6989586621679218221"><span id="local-6989586621679218222"><span id="local-6989586621679218223"><span id="local-6989586621679218224"><span id="local-6989586621679218225"><span id="local-6989586621679218226"><span id="local-6989586621679218227"><span id="local-6989586621679218228"><span id="local-6989586621679218229"><span id="local-6989586621679218230"><span id="local-6989586621679218231"><span id="local-6989586621679218232"><span id="local-6989586621679218233"><span id="local-6989586621679218234"><span id="local-6989586621679218235"><span id="local-6989586621679218236"><span id="local-6989586621679218237"><span id="local-6989586621679218238"><span id="local-6989586621679218239"><span class="annot"><span class="annottext">Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+torso :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+ar :: Float
+eyef :: Genotype -&gt; Float
+eyea :: Genotype -&gt; Float
+nosel :: Genotype -&gt; Float
+noses :: Genotype -&gt; Float
+noseh :: Genotype -&gt; Float
+pupill :: Genotype -&gt; Float
+pupils :: Genotype -&gt; Float
+pupilh :: Genotype -&gt; Float
+eyel :: Genotype -&gt; Float
+eyes :: Genotype -&gt; Float
+eyeh :: Genotype -&gt; Float
+skinh :: Genotype -&gt; Float
+torso :: Genotype -&gt; Float
+eary :: Genotype -&gt; Float
+earx :: Genotype -&gt; Float
+nosey :: Genotype -&gt; Float
+nosex :: Genotype -&gt; Float
+eyey :: Genotype -&gt; Float
+eyex :: Genotype -&gt; Float
+heady :: Genotype -&gt; Float
+headx :: Genotype -&gt; Float
+ar :: Genotype -&gt; Float
+</span><a href="#local-6989586621679218218"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-keyword">do</span><span>
+</span><span id="line-108"></span><span>      </span><span class="hs-keyword">let</span><span>
+</span><span id="line-109"></span><span>        </span><span class="annot"><a href="#local-6989586621679218217"><span class="hs-identifier hs-type">quantize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-110"></span><span>        </span><span id="local-6989586621679218217"><span class="annot"><span class="annottext">quantize :: (Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var hs-var">quantize</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218216"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218216"><span class="hs-identifier hs-var">x0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218215"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218215"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679218214"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218214"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218213"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218213"><span class="hs-identifier hs-var">y0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218212"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218212"><span class="hs-identifier hs-var">y1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679218211"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218211"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-111"></span><span>          </span><span class="hs-keyword">let</span><span>
+</span><span id="line-112"></span><span>            </span><span id="local-6989586621679218210"><span class="annot"><span class="annottext">hi :: Word8
+</span><a href="#local-6989586621679218210"><span class="hs-identifier hs-var hs-var">hi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Word8
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">(Float -&gt; Word8) -&gt; Float -&gt; Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">15</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218214"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218216"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218215"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218216"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>            </span><span id="local-6989586621679218209"><span class="annot"><span class="annottext">lo :: Word8
+</span><a href="#local-6989586621679218209"><span class="hs-identifier hs-var hs-var">lo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Word8
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">(Float -&gt; Word8) -&gt; Float -&gt; Word8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">15</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218211"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218213"><span class="hs-identifier hs-var">y0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218212"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218213"><span class="hs-identifier hs-var">y0</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>          </span><span class="hs-keyword">in</span><span>
+</span><span id="line-115"></span><span>            </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">16</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Word8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218210"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Word8
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218209"><span class="hs-identifier hs-var">lo</span></a></span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218239"><span class="hs-identifier hs-var">ar</span></a></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218230"><span class="hs-identifier hs-var">torso</span></a></span><span>
+</span><span id="line-117"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218238"><span class="hs-identifier hs-var">headx</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218237"><span class="hs-identifier hs-var">heady</span></a></span><span>
+</span><span id="line-118"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218236"><span class="hs-identifier hs-var">eyex</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218235"><span class="hs-identifier hs-var">eyey</span></a></span><span>
+</span><span id="line-119"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218234"><span class="hs-identifier hs-var">nosex</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218233"><span class="hs-identifier hs-var">nosey</span></a></span><span>
+</span><span id="line-120"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218232"><span class="hs-identifier hs-var">earx</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218231"><span class="hs-identifier hs-var">eary</span></a></span><span>
+</span><span id="line-121"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218229"><span class="hs-identifier hs-var">skinh</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218228"><span class="hs-identifier hs-var">eyeh</span></a></span><span>   </span><span>
+</span><span id="line-122"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218227"><span class="hs-identifier hs-var">eyes</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.65</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218226"><span class="hs-identifier hs-var">eyel</span></a></span><span>   </span><span>
+</span><span id="line-123"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218225"><span class="hs-identifier hs-var">pupilh</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218224"><span class="hs-identifier hs-var">pupils</span></a></span><span>
+</span><span id="line-124"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.35</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218223"><span class="hs-identifier hs-var">pupill</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218222"><span class="hs-identifier hs-var">noseh</span></a></span><span>  </span><span>
+</span><span id="line-125"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218221"><span class="hs-identifier hs-var">noses</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.40</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218220"><span class="hs-identifier hs-var">nosel</span></a></span><span>  </span><span>
+</span><span id="line-126"></span><span>      </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Put) -&gt; Word8 -&gt; Put
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; Float -&gt; (Float, Float) -&gt; Float -&gt; Word8
+</span><a href="#local-6989586621679218217"><span class="hs-identifier hs-var">quantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218219"><span class="hs-identifier hs-var">eyea</span></a></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.2</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1</span></span><span>   </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218218"><span class="hs-identifier hs-var">eyef</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span id="local-6989586621679218207"><span class="annot"><span class="annottext">get :: Get Genotype
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">get</span></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>    </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>      </span><span class="hs-keyword">let</span><span>
+</span><span id="line-130"></span><span>        </span><span class="annot"><a href="#local-6989586621679218205"><span class="hs-identifier hs-type">unquantize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>        </span><span id="local-6989586621679218205"><span class="annot"><span class="annottext">unquantize :: (Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var hs-var">unquantize</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218204"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218204"><span class="hs-identifier hs-var">x0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218203"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218203"><span class="hs-identifier hs-var">x1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218202"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218202"><span class="hs-identifier hs-var">y0</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218201"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218201"><span class="hs-identifier hs-var">y1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679218200"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218200"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-132"></span><span>          </span><span class="hs-keyword">let</span><span>
+</span><span id="line-133"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621679218199"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218199"><span class="hs-identifier hs-var">hi</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218198"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218198"><span class="hs-identifier hs-var">lo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218200"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; (Word8, Word8)
+forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`divMod`</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">16</span></span><span>
+</span><span id="line-134"></span><span>          </span><span class="hs-keyword">in</span><span>
+</span><span id="line-135"></span><span>            </span><span class="hs-special">(</span><span>
+</span><span id="line-136"></span><span>              </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218204"><span class="hs-identifier hs-var">x0</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218203"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218204"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Float
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218199"><span class="hs-identifier hs-var">hi</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">15</span></span><span>
+</span><span id="line-137"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218202"><span class="hs-identifier hs-var">y0</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218201"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218202"><span class="hs-identifier hs-var">y0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Float
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218198"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">15</span></span><span>
+</span><span id="line-138"></span><span>            </span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218196"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218196"><span class="hs-identifier hs-var">ar</span></a></span></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218195"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218195"><span class="hs-identifier hs-var">torso</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-140"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218193"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218193"><span class="hs-identifier hs-var">headx</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218192"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218192"><span class="hs-identifier hs-var">heady</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-141"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218191"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218191"><span class="hs-identifier hs-var">eyex</span></a></span></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218190"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218190"><span class="hs-identifier hs-var">eyey</span></a></span></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-142"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218189"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218189"><span class="hs-identifier hs-var">nosex</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218188"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218188"><span class="hs-identifier hs-var">nosey</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-143"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218187"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218187"><span class="hs-identifier hs-var">earx</span></a></span></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218186"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218186"><span class="hs-identifier hs-var">eary</span></a></span></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-144"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218185"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218185"><span class="hs-identifier hs-var">skinh</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218184"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218184"><span class="hs-identifier hs-var">eyeh</span></a></span></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span>
+</span><span id="line-145"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218183"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218183"><span class="hs-identifier hs-var">eyes</span></a></span></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218182"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218182"><span class="hs-identifier hs-var">eyel</span></a></span></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.65</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span>
+</span><span id="line-146"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218181"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218181"><span class="hs-identifier hs-var">pupilh</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218180"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218180"><span class="hs-identifier hs-var">pupils</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span>
+</span><span id="line-147"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218179"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218179"><span class="hs-identifier hs-var">pupill</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218178"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218178"><span class="hs-identifier hs-var">noseh</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.35</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span>
+</span><span id="line-148"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218177"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218177"><span class="hs-identifier hs-var">noses</span></a></span></span><span> </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218176"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218176"><span class="hs-identifier hs-var">nosel</span></a></span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.40</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span>
+</span><span id="line-149"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679218175"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218175"><span class="hs-identifier hs-var">eyea</span></a></span></span><span>  </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218174"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218174"><span class="hs-identifier hs-var">eyef</span></a></span></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; (Float, Float) -&gt; Word8 -&gt; (Float, Float)
+</span><a href="#local-6989586621679218205"><span class="hs-identifier hs-var">unquantize</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.2</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1</span></span><span>   </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; (Float, Float)) -&gt; Get Word8 -&gt; Get (Float, Float)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-150"></span><span>      </span><span class="annot"><span class="annottext">Genotype -&gt; Get Genotype
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Genotype :: Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Genotype
+</span><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+torso :: Float
+ar :: Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+torso :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+ar :: Float
+</span><a href="#local-6989586621679218174"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Uniform</span></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621679218171"><span class="annot"><span class="annottext">uniformM :: g -&gt; m Genotype
+</span><a href="#local-6989586621679218171"><span class="hs-identifier hs-var hs-var hs-var hs-var">uniformM</span></a></span></span><span> </span><span id="local-6989586621679218170"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-154"></span><span>    </span><span class="hs-keyword">do</span><span>
+</span><span id="line-155"></span><span>      </span><span id="local-6989586621679218169"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218169"><span class="hs-identifier hs-var">ar</span></a></span></span><span>     </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-156"></span><span>      </span><span id="local-6989586621679218168"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218168"><span class="hs-identifier hs-var">torso</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.25</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-157"></span><span>      </span><span id="local-6989586621679218167"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218167"><span class="hs-identifier hs-var">headx</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-158"></span><span>      </span><span id="local-6989586621679218166"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218166"><span class="hs-identifier hs-var">heady</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-159"></span><span>      </span><span id="local-6989586621679218165"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218165"><span class="hs-identifier hs-var">eyex</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-160"></span><span>      </span><span id="local-6989586621679218164"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218164"><span class="hs-identifier hs-var">eyey</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-161"></span><span>      </span><span id="local-6989586621679218163"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218163"><span class="hs-identifier hs-var">nosex</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-162"></span><span>      </span><span id="local-6989586621679218162"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218162"><span class="hs-identifier hs-var">nosey</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-163"></span><span>      </span><span id="local-6989586621679218161"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218161"><span class="hs-identifier hs-var">earx</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-164"></span><span>      </span><span id="local-6989586621679218160"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218160"><span class="hs-identifier hs-var">eary</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.75</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-165"></span><span>      </span><span id="local-6989586621679218159"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218159"><span class="hs-identifier hs-var">skinh</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-166"></span><span>      </span><span id="local-6989586621679218158"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218158"><span class="hs-identifier hs-var">eyeh</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-167"></span><span>      </span><span id="local-6989586621679218157"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218157"><span class="hs-identifier hs-var">eyes</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-168"></span><span>      </span><span id="local-6989586621679218156"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218156"><span class="hs-identifier hs-var">eyel</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.65</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-169"></span><span>      </span><span id="local-6989586621679218155"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218155"><span class="hs-identifier hs-var">pupilh</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-170"></span><span>      </span><span id="local-6989586621679218154"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218154"><span class="hs-identifier hs-var">pupils</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-171"></span><span>      </span><span id="local-6989586621679218153"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218153"><span class="hs-identifier hs-var">pupill</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.35</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-172"></span><span>      </span><span id="local-6989586621679218152"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218152"><span class="hs-identifier hs-var">noseh</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-173"></span><span>      </span><span id="local-6989586621679218151"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218151"><span class="hs-identifier hs-var">noses</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.80</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1.00</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-174"></span><span>      </span><span id="local-6989586621679218150"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218150"><span class="hs-identifier hs-var">nosel</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.00</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.40</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-175"></span><span>      </span><span id="local-6989586621679218149"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218149"><span class="hs-identifier hs-var">eyea</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">360</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-176"></span><span>      </span><span id="local-6989586621679218148"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218148"><span class="hs-identifier hs-var">eyef</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.2</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1</span></span><span>   </span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218170"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-177"></span><span>      </span><span class="annot"><span class="annottext">Genotype -&gt; m Genotype
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Genotype :: Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Genotype
+</span><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+torso :: Float
+ar :: Float
+eyef :: Float
+eyea :: Float
+nosel :: Float
+noses :: Float
+noseh :: Float
+pupill :: Float
+pupils :: Float
+pupilh :: Float
+eyel :: Float
+eyes :: Float
+eyeh :: Float
+skinh :: Float
+torso :: Float
+eary :: Float
+earx :: Float
+nosey :: Float
+nosex :: Float
+eyey :: Float
+eyex :: Float
+heady :: Float
+headx :: Float
+ar :: Float
+</span><a href="#local-6989586621679218148"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- | Perform crossover between genotypes.</span><span>
+</span><span id="line-181"></span><span id="local-6989586621679218146"><span id="local-6989586621679218147"><span class="annot"><a href="Pigy.Image.V1.html#crossover"><span class="hs-identifier hs-type">crossover</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679218147"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-182"></span><span>          </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679218146"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679218147"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-183"></span><span>          </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218146"><span class="hs-identifier hs-type">g</span></a></span><span>          </span><span class="hs-comment">-- ^ The random-number generator.</span><span>
+</span><span id="line-184"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- ^ The genotypes to be crossed.</span><span>
+</span><span id="line-185"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218147"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ The action to cross the genotypes.</span></span></span><span>
+</span><span id="line-186"></span><span id="crossover"><span class="annot"><span class="annottext">crossover :: g -&gt; [Genotype] -&gt; m Genotype
+</span><a href="Pigy.Image.V1.html#crossover"><span class="hs-identifier hs-var hs-var">crossover</span></a></span></span><span> </span><span id="local-6989586621679218145"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218145"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679218144"><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-188"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-189"></span><span>      </span><span id="local-6989586621679218143"><span class="annot"><span class="annottext">blend :: a -&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679218143"><span class="hs-identifier hs-var hs-var">blend</span></a></span></span><span> </span><span id="local-6989586621679218142"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218142"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679218141"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218141"><span class="hs-identifier hs-var">h0</span></a></span></span><span> </span><span id="local-6989586621679218140"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218140"><span class="hs-identifier hs-var">h1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-190"></span><span>        </span><span class="hs-keyword">let</span><span>
+</span><span id="line-191"></span><span>          </span><span id="local-6989586621679218139"><span class="annot"><span class="annottext">delta :: a
+</span><a href="#local-6989586621679218139"><span class="hs-identifier hs-var hs-var">delta</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218140"><span class="hs-identifier hs-var">h1</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218141"><span class="hs-identifier hs-var">h0</span></a></span><span>
+</span><span id="line-192"></span><span>          </span><span id="local-6989586621679218138"><span class="annot"><span class="annottext">delta' :: a
+</span><a href="#local-6989586621679218138"><span class="hs-identifier hs-var hs-var">delta'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-193"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+forall a. Num a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">abs</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218139"><span class="hs-identifier hs-var">delta</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">180</span></span><span>
+</span><span id="line-194"></span><span>              </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218139"><span class="hs-identifier hs-var">delta</span></a></span><span>
+</span><span id="line-195"></span><span>              </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218139"><span class="hs-identifier hs-var">delta</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">360</span></span><span>
+</span><span id="line-196"></span><span>        </span><span class="hs-keyword">in</span><span>
+</span><span id="line-197"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218141"><span class="hs-identifier hs-var">h0</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218142"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679218138"><span class="hs-identifier hs-var">delta'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Real a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">`mod'`</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">360</span></span><span>
+</span><span id="line-198"></span><span>      </span><span id="local-6989586621679218135"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679218135"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span>
+</span><span id="line-199"></span><span>    </span><span class="hs-special">[</span><span id="local-6989586621679218133"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218133"><span class="hs-identifier hs-var">ar'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218132"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218132"><span class="hs-identifier hs-var">headx'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218131"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218131"><span class="hs-identifier hs-var">heady'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218130"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218130"><span class="hs-identifier hs-var">eyex'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218129"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218129"><span class="hs-identifier hs-var">eyey'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218128"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218128"><span class="hs-identifier hs-var">nosex'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218127"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218127"><span class="hs-identifier hs-var">nosey'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218126"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218126"><span class="hs-identifier hs-var">earx'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218125"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218125"><span class="hs-identifier hs-var">eary'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218124"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218124"><span class="hs-identifier hs-var">torso'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218123"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218123"><span class="hs-identifier hs-var">eyeh'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218122"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218122"><span class="hs-identifier hs-var">eyes'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218121"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218121"><span class="hs-identifier hs-var">eyel'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218120"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218120"><span class="hs-identifier hs-var">pupilh'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218119"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218119"><span class="hs-identifier hs-var">pupils'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218118"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218118"><span class="hs-identifier hs-var">pupill'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218117"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218117"><span class="hs-identifier hs-var">noseh'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218116"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218116"><span class="hs-identifier hs-var">noses'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218115"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218115"><span class="hs-identifier hs-var">nosel'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218114"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218114"><span class="hs-identifier hs-var">eyea'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218113"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218113"><span class="hs-identifier hs-var">eyef'</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; m Int -&gt; m [Int]
+forall (m :: * -&gt; *) a. Applicative m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">21</span></span><span> </span><span class="annot"><span class="annottext">(m Int -&gt; m [Int]) -&gt; m Int -&gt; m [Int]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Int, Int) -&gt; g -&gt; m Int
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218135"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218145"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-200"></span><span>    </span><span class="hs-special">[</span><span id="local-6989586621679218112"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218112"><span class="hs-identifier hs-var">skinh'</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; m Float -&gt; m [Float]
+forall (m :: * -&gt; *) a. Applicative m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">(m Float -&gt; m [Float]) -&gt; m Float -&gt; m [Float]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Float, Float) -&gt; g -&gt; m Float
+forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218145"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-201"></span><span>    </span><span class="annot"><span class="annottext">Genotype -&gt; m Genotype
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-202"></span><span>      </span><span class="annot"><span class="annottext">(Genotype -&gt; m Genotype) -&gt; Genotype -&gt; m Genotype
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Genotype :: Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Float
+-&gt; Genotype
+</span><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span>
+</span><span id="line-203"></span><span>      </span><span class="hs-special">{</span><span>
+</span><span id="line-204"></span><span>        </span><span class="annot"><span class="annottext">ar :: Float
+</span><a href="Pigy.Image.V1.html#ar"><span class="hs-identifier hs-var">ar</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#ar"><span class="hs-identifier hs-var hs-var">ar</span></a></span><span>     </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218133"><span class="hs-identifier hs-var">ar'</span></a></span><span>    </span><span>
+</span><span id="line-205"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">headx :: Float
+</span><a href="Pigy.Image.V1.html#headx"><span class="hs-identifier hs-var">headx</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#headx"><span class="hs-identifier hs-var hs-var">headx</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218132"><span class="hs-identifier hs-var">headx'</span></a></span><span> </span><span>
+</span><span id="line-206"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">heady :: Float
+</span><a href="Pigy.Image.V1.html#heady"><span class="hs-identifier hs-var">heady</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#heady"><span class="hs-identifier hs-var hs-var">heady</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218131"><span class="hs-identifier hs-var">heady'</span></a></span><span> </span><span>
+</span><span id="line-207"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyex :: Float
+</span><a href="Pigy.Image.V1.html#eyex"><span class="hs-identifier hs-var">eyex</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyex"><span class="hs-identifier hs-var hs-var">eyex</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218130"><span class="hs-identifier hs-var">eyex'</span></a></span><span>  </span><span>
+</span><span id="line-208"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyey :: Float
+</span><a href="Pigy.Image.V1.html#eyey"><span class="hs-identifier hs-var">eyey</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyey"><span class="hs-identifier hs-var hs-var">eyey</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218129"><span class="hs-identifier hs-var">eyey'</span></a></span><span>  </span><span>
+</span><span id="line-209"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">nosex :: Float
+</span><a href="Pigy.Image.V1.html#nosex"><span class="hs-identifier hs-var">nosex</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosex"><span class="hs-identifier hs-var hs-var">nosex</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218128"><span class="hs-identifier hs-var">nosex'</span></a></span><span> </span><span>
+</span><span id="line-210"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">nosey :: Float
+</span><a href="Pigy.Image.V1.html#nosey"><span class="hs-identifier hs-var">nosey</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosey"><span class="hs-identifier hs-var hs-var">nosey</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218127"><span class="hs-identifier hs-var">nosey'</span></a></span><span> </span><span>
+</span><span id="line-211"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">earx :: Float
+</span><a href="Pigy.Image.V1.html#earx"><span class="hs-identifier hs-var">earx</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#earx"><span class="hs-identifier hs-var hs-var">earx</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218126"><span class="hs-identifier hs-var">earx'</span></a></span><span>  </span><span>
+</span><span id="line-212"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eary :: Float
+</span><a href="Pigy.Image.V1.html#eary"><span class="hs-identifier hs-var">eary</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eary"><span class="hs-identifier hs-var hs-var">eary</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218125"><span class="hs-identifier hs-var">eary'</span></a></span><span>  </span><span>
+</span><span id="line-213"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">torso :: Float
+</span><a href="Pigy.Image.V1.html#torso"><span class="hs-identifier hs-var">torso</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#torso"><span class="hs-identifier hs-var hs-var">torso</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218124"><span class="hs-identifier hs-var">torso'</span></a></span><span> </span><span>
+</span><span id="line-214"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">skinh :: Float
+</span><a href="Pigy.Image.V1.html#skinh"><span class="hs-identifier hs-var">skinh</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Float -&gt; Float -&gt; Float) -&gt; [Float] -&gt; Float
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; a -&gt; a) -&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">foldl1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float -&gt; Float
+forall a. Real a =&gt; a -&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679218143"><span class="hs-identifier hs-var">blend</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218112"><span class="hs-identifier hs-var">skinh'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Float] -&gt; Float) -&gt; [Float] -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#skinh"><span class="hs-identifier hs-var hs-var">skinh</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; [Genotype] -&gt; [Float]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span>
+</span><span id="line-215"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyeh :: Float
+</span><a href="Pigy.Image.V1.html#eyeh"><span class="hs-identifier hs-var">eyeh</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyeh"><span class="hs-identifier hs-var hs-var">eyeh</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218123"><span class="hs-identifier hs-var">eyeh'</span></a></span><span>  </span><span>
+</span><span id="line-216"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyes :: Float
+</span><a href="Pigy.Image.V1.html#eyes"><span class="hs-identifier hs-var">eyes</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyes"><span class="hs-identifier hs-var hs-var">eyes</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218122"><span class="hs-identifier hs-var">eyes'</span></a></span><span>  </span><span>
+</span><span id="line-217"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyel :: Float
+</span><a href="Pigy.Image.V1.html#eyel"><span class="hs-identifier hs-var">eyel</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyel"><span class="hs-identifier hs-var hs-var">eyel</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218121"><span class="hs-identifier hs-var">eyel'</span></a></span><span>  </span><span>
+</span><span id="line-218"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">pupilh :: Float
+</span><a href="Pigy.Image.V1.html#pupilh"><span class="hs-identifier hs-var">pupilh</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupilh"><span class="hs-identifier hs-var hs-var">pupilh</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218120"><span class="hs-identifier hs-var">pupilh'</span></a></span><span>
+</span><span id="line-219"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">pupils :: Float
+</span><a href="Pigy.Image.V1.html#pupils"><span class="hs-identifier hs-var">pupils</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupils"><span class="hs-identifier hs-var hs-var">pupils</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218119"><span class="hs-identifier hs-var">pupils'</span></a></span><span>
+</span><span id="line-220"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">pupill :: Float
+</span><a href="Pigy.Image.V1.html#pupill"><span class="hs-identifier hs-var">pupill</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#pupill"><span class="hs-identifier hs-var hs-var">pupill</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218118"><span class="hs-identifier hs-var">pupill'</span></a></span><span>
+</span><span id="line-221"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">noseh :: Float
+</span><a href="Pigy.Image.V1.html#noseh"><span class="hs-identifier hs-var">noseh</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#noseh"><span class="hs-identifier hs-var hs-var">noseh</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218117"><span class="hs-identifier hs-var">noseh'</span></a></span><span> </span><span>
+</span><span id="line-222"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">noses :: Float
+</span><a href="Pigy.Image.V1.html#noses"><span class="hs-identifier hs-var">noses</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#noses"><span class="hs-identifier hs-var hs-var">noses</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218116"><span class="hs-identifier hs-var">noses'</span></a></span><span> </span><span>
+</span><span id="line-223"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">nosel :: Float
+</span><a href="Pigy.Image.V1.html#nosel"><span class="hs-identifier hs-var">nosel</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#nosel"><span class="hs-identifier hs-var hs-var">nosel</span></a></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218115"><span class="hs-identifier hs-var">nosel'</span></a></span><span> </span><span>
+</span><span id="line-224"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyea :: Float
+</span><a href="Pigy.Image.V1.html#eyea"><span class="hs-identifier hs-var">eyea</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyea"><span class="hs-identifier hs-var hs-var">eyea</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218114"><span class="hs-identifier hs-var">eyea'</span></a></span><span>  </span><span>
+</span><span id="line-225"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">eyef :: Float
+</span><a href="Pigy.Image.V1.html#eyef"><span class="hs-identifier hs-var">eyef</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Float
+</span><a href="Pigy.Image.V1.html#eyef"><span class="hs-identifier hs-var hs-var">eyef</span></a></span><span>   </span><span class="annot"><span class="annottext">(Genotype -&gt; Float) -&gt; Genotype -&gt; Float
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Genotype]
+</span><a href="#local-6989586621679218144"><span class="hs-identifier hs-var">genotypes</span></a></span><span> </span><span class="annot"><span class="annottext">[Genotype] -&gt; Int -&gt; Genotype
+forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679218113"><span class="hs-identifier hs-var">eyef'</span></a></span><span>  </span><span>
+</span><span id="line-226"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-227"></span></pre></body></html>

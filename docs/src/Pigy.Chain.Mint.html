@@ -1,0 +1,675 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Minting image tokens.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE NumericUnderscores #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings  #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE RecordWildCards    #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Pigy.Chain.Mint</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- * Minting</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Pigy.Chain.Mint.html#mint"><span class="hs-identifier">mint</span></a></span><span>
+</span><span id="line-24"></span><span class="annot"><span class="hs-comment">-- * Validation</span></span><span>
+</span><span id="line-25"></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Pigy.Chain.Mint.html#checkValue"><span class="hs-identifier">checkValue</span></a></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- * Filtering</span></span><span>
+</span><span id="line-27"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier">pigFilter</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Mint.html#findPigs"><span class="hs-identifier">findPigs</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Cardano.Api</span></span><span>                                       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AssetId</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">AssetName</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">PolicyId</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Quantity</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ScriptHash</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ShelleyWitnessSigningKey</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxIn</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxMetadata</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxMetadataValue</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxOut</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxOutValue</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Value</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">filterValue</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getTxId</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeScriptWitness</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeShelleyKeyWitness</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeSignedTransaction</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeTransactionBody</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">negateValue</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">quantityToLovelace</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">selectAsset</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">selectLovelace</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">serialiseToRawBytesHexText</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">valueFromList</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">valueToList</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Error.Class</span></span><span>                         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">throwError</span></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>                            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">liftIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>                                        </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">mapMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Query</span></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">submitTransaction</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Script</span></span><span>                                     </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">mintingScript</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Transaction</span></span><span>                                </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">includeFee</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeTransaction</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">supportedMultiAsset</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Types</span></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MantisM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">foistMantisEither</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">printMantis</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Ouroboros.Network.Protocol.LocalTxSubmission.Type</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">SubmitResult</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html"><span class="hs-identifier">Pigy.Chain.Types</span></a></span><span>                                  </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier">MaryAddress</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Image.html"><span class="hs-identifier">Pigy.Image</span></a></span><span>                                        </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#crossover"><span class="hs-identifier">crossover</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#fromChromosome"><span class="hs-identifier">fromChromosome</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#newGenotype"><span class="hs-identifier">newGenotype</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Ipfs.html"><span class="hs-identifier">Pigy.Ipfs</span></a></span><span>                                         </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Ipfs.html#pinImage"><span class="hs-identifier">pinImage</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Types.html"><span class="hs-identifier">Pigy.Types</span></a></span><span>                                        </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier">Context</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier">KeyedAddress</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Char8</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ByteString</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">drop</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isPrefixOf</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">pack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unpack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span>       </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">M</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromList</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span>             </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">pack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- | Validate input value.</span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Pigy.Chain.Mint.html#checkValue"><span class="hs-identifier hs-type">checkValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AssetId</span></span><span>    </span><span class="hs-comment">-- ^ The payment token.</span><span>
+</span><span id="line-53"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ScriptHash</span></span><span> </span><span class="hs-comment">-- ^ The policy for the image tokens.</span><span>
+</span><span id="line-54"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Value</span></span><span>      </span><span class="hs-comment">-- ^ The value to be validated.</span><span>
+</span><span id="line-55"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>       </span><span class="hs-comment">-- ^ Whether minting can proceed.</span><span>
+</span><span id="line-56"></span><span id="checkValue"><span class="annot"><span class="annottext">checkValue :: AssetId -&gt; ScriptHash -&gt; Value -&gt; Bool
+</span><a href="Pigy.Chain.Mint.html#checkValue"><span class="hs-identifier hs-var hs-var">checkValue</span></a></span></span><span> </span><span id="local-6989586621679219681"><span class="annot"><span class="annottext">AssetId
+</span><a href="#local-6989586621679219681"><span class="hs-identifier hs-var">token</span></a></span></span><span> </span><span id="local-6989586621679219680"><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219680"><span class="hs-identifier hs-var">scriptHash</span></a></span></span><span> </span><span id="local-6989586621679219679"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219679"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-58"></span><span>    </span><span id="local-6989586621679219678"><span class="annot"><span class="annottext">ada :: Lovelace
+</span><a href="#local-6989586621679219678"><span class="hs-identifier hs-var hs-var">ada</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Lovelace
+</span><span class="hs-identifier hs-var">selectLovelace</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219679"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span id="local-6989586621679219677"><span class="annot"><span class="annottext">pigy :: Quantity
+</span><a href="#local-6989586621679219677"><span class="hs-identifier hs-var hs-var">pigy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; AssetId -&gt; Quantity
+</span><span class="hs-identifier hs-var">selectAsset</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219679"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">AssetId
+</span><a href="#local-6989586621679219681"><span class="hs-identifier hs-var">token</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span id="local-6989586621679219676"><span class="annot"><span class="annottext">pigs :: Int
+</span><a href="#local-6989586621679219676"><span class="hs-identifier hs-var hs-var">pigs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; Int
+forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[ByteString] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">([ByteString] -&gt; Int) -&gt; [ByteString] -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScriptHash -&gt; Value -&gt; [ByteString]
+</span><a href="Pigy.Chain.Mint.html#findPigs"><span class="hs-identifier hs-var">findPigs</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219680"><span class="hs-identifier hs-var">scriptHash</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219679"><span class="hs-identifier hs-var">value</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>    </span><span id="local-6989586621679219673"><span class="annot"><span class="annottext">a :: Integer
+</span><a href="#local-6989586621679219673"><span class="hs-identifier hs-var hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1_500_000</span></span><span>
+</span><span id="line-62"></span><span>    </span><span id="local-6989586621679219672"><span class="annot"><span class="annottext">b :: Integer
+</span><a href="#local-6989586621679219672"><span class="hs-identifier hs-var hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>   </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">500_000</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-keyword">in</span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><span class="annottext">Quantity
+</span><a href="#local-6989586621679219677"><span class="hs-identifier hs-var">pigy</span></a></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; Quantity -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Quantity
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Lovelace
+</span><a href="#local-6989586621679219678"><span class="hs-identifier hs-var">ada</span></a></span><span> </span><span class="annot"><span class="annottext">Lovelace -&gt; Lovelace -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Quantity -&gt; Lovelace
+</span><span class="hs-identifier hs-var">quantityToLovelace</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Quantity
+</span><span class="hs-identifier hs-var">Quantity</span></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Quantity) -&gt; Integer -&gt; Quantity
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679219673"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679219672"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Integer
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679219676"><span class="hs-identifier hs-var">pigs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | Test whether an asset is a token image.</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier hs-type">pigFilter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ScriptHash</span></span><span> </span><span class="hs-comment">-- ^ The policy for the image tokens.</span><span>
+</span><span id="line-69"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AssetId</span></span><span>    </span><span class="hs-comment">-- ^ The asset in question.</span><span>
+</span><span id="line-70"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>       </span><span class="hs-comment">-- ^ Whether the asset is an image token.</span><span>
+</span><span id="line-71"></span><span id="pigFilter"><span class="annot"><span class="annottext">pigFilter :: ScriptHash -&gt; AssetId -&gt; Bool
+</span><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier hs-var hs-var">pigFilter</span></a></span></span><span> </span><span id="local-6989586621679219666"><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219666"><span class="hs-identifier hs-var">scriptHash</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">AssetId</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">PolicyId</span></span><span> </span><span id="local-6989586621679219663"><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219663"><span class="hs-identifier hs-var">scriptHash'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">AssetName</span></span><span> </span><span id="local-6989586621679219661"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679219661"><span class="hs-identifier hs-var">name'</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219663"><span class="hs-identifier hs-var">scriptHash'</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash -&gt; ScriptHash -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219666"><span class="hs-identifier hs-var">scriptHash</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; Bool
+</span><span class="hs-identifier hs-var">BS.isPrefixOf</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-string">&quot;PIG@&quot;</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679219661"><span class="hs-identifier hs-var">name'</span></a></span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier hs-var">pigFilter</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">AssetId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | Find the tickers for the image tokens in a value.</span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Pigy.Chain.Mint.html#findPigs"><span class="hs-identifier hs-type">findPigs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ScriptHash</span></span><span>      </span><span class="hs-comment">-- ^ The policy.</span><span>
+</span><span id="line-77"></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Value</span></span><span>           </span><span class="hs-comment">-- ^ The value.</span><span>
+</span><span id="line-78"></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">BS.ByteString</span></span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- ^ The image-token tickers.</span><span>
+</span><span id="line-79"></span><span id="findPigs"><span class="annot"><span class="annottext">findPigs :: ScriptHash -&gt; Value -&gt; [ByteString]
+</span><a href="Pigy.Chain.Mint.html#findPigs"><span class="hs-identifier hs-var hs-var">findPigs</span></a></span></span><span> </span><span id="local-6989586621679219660"><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219660"><span class="hs-identifier hs-var">scriptHash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-80"></span><span>  </span><span class="annot"><span class="annottext">((AssetId, Quantity) -&gt; ByteString)
+-&gt; [(AssetId, Quantity)] -&gt; [ByteString]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">AssetId</span></span><span> </span><span class="annot"><span class="annottext">PolicyId
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">AssetName</span></span><span> </span><span id="local-6989586621679219659"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679219659"><span class="hs-identifier hs-var">name'</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Quantity
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int -&gt; ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">BS.drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679219659"><span class="hs-identifier hs-var">name'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><span class="annottext">([(AssetId, Quantity)] -&gt; [ByteString])
+-&gt; (Value -&gt; [(AssetId, Quantity)]) -&gt; Value -&gt; [ByteString]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((AssetId, Quantity) -&gt; Bool)
+-&gt; [(AssetId, Quantity)] -&gt; [(AssetId, Quantity)]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptHash -&gt; AssetId -&gt; Bool
+</span><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier hs-var">pigFilter</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219660"><span class="hs-identifier hs-var">scriptHash</span></a></span><span> </span><span class="annot"><span class="annottext">(AssetId -&gt; Bool)
+-&gt; ((AssetId, Quantity) -&gt; AssetId) -&gt; (AssetId, Quantity) -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(AssetId, Quantity) -&gt; AssetId
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><span class="annottext">([(AssetId, Quantity)] -&gt; [(AssetId, Quantity)])
+-&gt; (Value -&gt; [(AssetId, Quantity)])
+-&gt; Value
+-&gt; [(AssetId, Quantity)]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; [(AssetId, Quantity)]
+</span><span class="hs-identifier hs-var">valueToList</span></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | Mint or burn an image token.</span><span>
+</span><span id="line-86"></span><span id="local-6989586621679219657"><span class="annot"><a href="Pigy.Chain.Mint.html#mint"><span class="hs-identifier hs-type">mint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679219657"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-87"></span><span>     </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219657"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-88"></span><span>     </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-type">Context</span></a></span><span>      </span><span class="hs-comment">-- ^ The service context.</span><span>
+</span><span id="line-89"></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">TxIn</span></span><span class="hs-special">]</span><span>       </span><span class="hs-comment">-- ^ The UTxOs to be spent.</span><span>
+</span><span id="line-90"></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier hs-type">MaryAddress</span></a></span><span>  </span><span class="hs-comment">-- ^ The destination.</span><span>
+</span><span id="line-91"></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Value</span></span><span>        </span><span class="hs-comment">-- ^ The value to be spent.</span><span>
+</span><span id="line-92"></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>     </span><span class="hs-comment">-- ^ The message to be embedded in the transaction.</span><span>
+</span><span id="line-93"></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MantisM</span></span><span> </span><span class="annot"><a href="#local-6989586621679219657"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- ^ The action to mint or burn.</span></span><span>
+</span><span id="line-94"></span><span id="mint"><span class="annot"><span class="annottext">mint :: Context
+-&gt; [TxIn] -&gt; MaryAddress -&gt; Value -&gt; [String] -&gt; MantisM m ()
+</span><a href="Pigy.Chain.Mint.html#mint"><span class="hs-identifier hs-var hs-var">mint</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-type">Context</span></a></span><span class="hs-special">{</span><span id="local-6989586621679219645"><span id="local-6989586621679219646"><span id="local-6989586621679219647"><span id="local-6989586621679219648"><span id="local-6989586621679219649"><span id="local-6989586621679219650"><span id="local-6989586621679219651"><span id="local-6989586621679219652"><span id="local-6989586621679219653"><span id="local-6989586621679219654"><span id="local-6989586621679219655"><span class="annot"><span class="annottext">Bool
+String
+IOGenM StdGen
+ConsensusModeParams CardanoMode
+NetworkId
+AssetId
+ProtocolParameters
+KeyedAddress
+Mode
+verbose :: Context -&gt; Bool
+operation :: Context -&gt; Mode
+images :: Context -&gt; String
+ipfsPin :: Context -&gt; String
+gRandom :: Context -&gt; IOGenM StdGen
+keyedAddress :: Context -&gt; KeyedAddress
+token :: Context -&gt; AssetId
+pparams :: Context -&gt; ProtocolParameters
+network :: Context -&gt; NetworkId
+protocol :: Context -&gt; ConsensusModeParams CardanoMode
+socket :: Context -&gt; String
+verbose :: Bool
+operation :: Mode
+images :: String
+ipfsPin :: String
+gRandom :: IOGenM StdGen
+keyedAddress :: KeyedAddress
+token :: AssetId
+pparams :: ProtocolParameters
+network :: NetworkId
+protocol :: ConsensusModeParams CardanoMode
+socket :: String
+</span><a href="Pigy.Types.html#verbose"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679219633"><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679219633"><span class="hs-identifier hs-var">txIns</span></a></span></span><span> </span><span id="local-6989586621679219632"><span class="annot"><span class="annottext">MaryAddress
+</span><a href="#local-6989586621679219632"><span class="hs-identifier hs-var">destination</span></a></span></span><span> </span><span id="local-6989586621679219631"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219631"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span id="local-6989586621679219630"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679219630"><span class="hs-identifier hs-var">message</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-97"></span><span>      </span><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-type">KeyedAddress</span></a></span><span class="hs-special">{</span><span id="local-6989586621679219625"><span id="local-6989586621679219626"><span id="local-6989586621679219627"><span id="local-6989586621679219628"><span class="annot"><span class="annottext">SomePaymentVerificationKey
+MaryAddress
+Hash PaymentKey
+SigningKey PaymentExtendedKey
+signing :: KeyedAddress -&gt; SigningKey PaymentExtendedKey
+verification :: KeyedAddress -&gt; SomePaymentVerificationKey
+verificationHash :: KeyedAddress -&gt; Hash PaymentKey
+keyAddress :: KeyedAddress -&gt; MaryAddress
+signing :: SigningKey PaymentExtendedKey
+verification :: SomePaymentVerificationKey
+verificationHash :: Hash PaymentKey
+keyAddress :: MaryAddress
+</span><a href="Pigy.Types.html#signing"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">KeyedAddress
+</span><a href="#local-6989586621679219650"><span class="hs-identifier hs-var">keyedAddress</span></a></span><span>
+</span><span id="line-98"></span><span>      </span><span class="hs-special">(</span><span id="local-6989586621679219620"><span class="annot"><span class="annottext">ScriptInEra MaryEra
+</span><a href="#local-6989586621679219620"><span class="hs-identifier hs-var">script</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219619"><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219619"><span class="hs-identifier hs-var">scriptHash</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Hash PaymentKey
+-&gt; Maybe SlotNo -&gt; (ScriptInEra MaryEra, ScriptHash)
+</span><span class="hs-identifier hs-var">mintingScript</span></span><span> </span><span class="annot"><span class="annottext">Hash PaymentKey
+</span><a href="#local-6989586621679219627"><span class="hs-identifier hs-var">verificationHash</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe SlotNo
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-99"></span><span>      </span><span id="local-6989586621679219618"><span class="annot"><span class="annottext">pigs :: [ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var hs-var">pigs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScriptHash -&gt; Value -&gt; [ByteString]
+</span><a href="Pigy.Chain.Mint.html#findPigs"><span class="hs-identifier hs-var">findPigs</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219619"><span class="hs-identifier hs-var">scriptHash</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219631"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-100"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679219617"><span class="annot"><span class="annottext">Maybe TxMetadata
+</span><a href="#local-6989586621679219617"><span class="hs-identifier hs-var">metadata</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219616"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219616"><span class="hs-identifier hs-var">minting</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-101"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[ByteString] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-102"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-103"></span><span>               </span><span class="annot"><span class="annottext">String -&gt; MantisM m ()
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; MantisM m ()
+</span><span class="hs-identifier hs-var">printMantis</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; MantisM m ()) -&gt; String -&gt; MantisM m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  Burnt token: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">BS.unpack</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ByteString] -&gt; ByteString
+forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>               </span><span class="annot"><span class="annottext">(Maybe TxMetadata, Value) -&gt; MantisM m (Maybe TxMetadata, Value)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-105"></span><span>                 </span><span class="hs-special">(</span><span>
+</span><span id="line-106"></span><span>                   </span><span class="annot"><span class="annottext">Maybe TxMetadata
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-107"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value
+</span><span class="hs-identifier hs-var">negateValue</span></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Value) -&gt; Value -&gt; Value
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(AssetId -&gt; Bool) -&gt; Value -&gt; Value
+</span><span class="hs-identifier hs-var">filterValue</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptHash -&gt; AssetId -&gt; Bool
+</span><a href="Pigy.Chain.Mint.html#pigFilter"><span class="hs-identifier hs-var">pigFilter</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219619"><span class="hs-identifier hs-var">scriptHash</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219631"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-108"></span><span>                 </span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>               </span><span id="local-6989586621679219614"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679219614"><span class="hs-identifier hs-var">genotype</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-111"></span><span>                 </span><span class="annot"><span class="annottext">IO Genotype -&gt; MantisM m Genotype
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span>
+</span><span id="line-112"></span><span>                   </span><span class="annot"><span class="annottext">(IO Genotype -&gt; MantisM m Genotype)
+-&gt; IO Genotype -&gt; MantisM m Genotype
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[ByteString] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span>
+</span><span id="line-113"></span><span>                       </span><span class="hs-keyword">then</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-114"></span><span>                              </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  New token.&quot;</span></span><span>
+</span><span id="line-115"></span><span>                              </span><span class="annot"><span class="annottext">IOGenM StdGen -&gt; IO Genotype
+forall g. StatefulGen g IO =&gt; g -&gt; IO Genotype
+</span><a href="Pigy.Image.html#newGenotype"><span class="hs-identifier hs-var">newGenotype</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679219649"><span class="hs-identifier hs-var">gRandom</span></a></span><span>
+</span><span id="line-116"></span><span>                       </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-117"></span><span>                              </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  Crossover token: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">BS.unpack</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; String) -&gt; [ByteString] -&gt; [String]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-118"></span><span>                              </span><span class="annot"><span class="annottext">IOGenM StdGen -&gt; [Genotype] -&gt; IO Genotype
+forall (m :: * -&gt; *) g.
+(MonadFail m, StatefulGen g m) =&gt;
+g -&gt; [Genotype] -&gt; m Genotype
+</span><a href="Pigy.Image.html#crossover"><span class="hs-identifier hs-var">crossover</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679219649"><span class="hs-identifier hs-var">gRandom</span></a></span><span> </span><span class="annot"><span class="annottext">([Genotype] -&gt; IO Genotype) -&gt; [Genotype] -&gt; IO Genotype
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; Maybe Genotype) -&gt; [ByteString] -&gt; [Genotype]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Maybe Genotype
+</span><a href="Pigy.Image.html#fromChromosome"><span class="hs-identifier hs-var">fromChromosome</span></a></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Maybe Genotype)
+-&gt; (ByteString -&gt; String) -&gt; ByteString -&gt; Maybe Genotype
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">BS.unpack</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span>
+</span><span id="line-119"></span><span>               </span><span class="hs-special">(</span><span id="local-6989586621679219609"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219609"><span class="hs-identifier hs-var">chromosome</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219608"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219608"><span class="hs-identifier hs-var">cid</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Genotype -&gt; MantisM m (String, String)
+forall (m :: * -&gt; *).
+(MonadFail m, MonadIO m) =&gt;
+String -&gt; String -&gt; Genotype -&gt; MantisM m (String, String)
+</span><a href="Pigy.Ipfs.html#pinImage"><span class="hs-identifier hs-var">pinImage</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219648"><span class="hs-identifier hs-var">ipfsPin</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219647"><span class="hs-identifier hs-var">images</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679219614"><span class="hs-identifier hs-var">genotype</span></a></span><span>
+</span><span id="line-120"></span><span>               </span><span class="hs-keyword">let</span><span>
+</span><span id="line-121"></span><span>                 </span><span id="local-6989586621679219607"><span class="annot"><span class="annottext">name :: String
+</span><a href="#local-6989586621679219607"><span class="hs-identifier hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PIG@&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219609"><span class="hs-identifier hs-var">chromosome</span></a></span><span>
+</span><span id="line-122"></span><span>               </span><span class="annot"><span class="annottext">(Maybe TxMetadata, Value) -&gt; MantisM m (Maybe TxMetadata, Value)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-123"></span><span>                 </span><span class="hs-special">(</span><span>
+</span><span id="line-124"></span><span>                   </span><span class="annot"><span class="annottext">TxMetadata -&gt; Maybe TxMetadata
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-125"></span><span>                     </span><span class="annot"><span class="annottext">(TxMetadata -&gt; Maybe TxMetadata)
+-&gt; (Map Word64 TxMetadataValue -&gt; TxMetadata)
+-&gt; Map Word64 TxMetadataValue
+-&gt; Maybe TxMetadata
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map Word64 TxMetadataValue -&gt; TxMetadata
+</span><span class="hs-identifier hs-var">TxMetadata</span></span><span>
+</span><span id="line-126"></span><span>                     </span><span class="annot"><span class="annottext">(Map Word64 TxMetadataValue -&gt; Maybe TxMetadata)
+-&gt; Map Word64 TxMetadataValue -&gt; Maybe TxMetadata
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(Word64, TxMetadataValue)] -&gt; Map Word64 TxMetadataValue
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">M.fromList</span></span><span>
+</span><span id="line-127"></span><span>                     </span><span class="hs-special">[</span><span>
+</span><span id="line-128"></span><span>                       </span><span class="hs-special">(</span><span>
+</span><span id="line-129"></span><span>                         </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">721</span></span><span>
+</span><span id="line-130"></span><span>                       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[(TxMetadataValue, TxMetadataValue)] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaMap</span></span><span>
+</span><span id="line-131"></span><span>                         </span><span class="hs-special">[</span><span>
+</span><span id="line-132"></span><span>                           </span><span class="hs-special">(</span><span>
+</span><span id="line-133"></span><span>                             </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue)
+-&gt; (ScriptHash -&gt; Text) -&gt; ScriptHash -&gt; TxMetadataValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ScriptHash -&gt; Text
+forall a. SerialiseAsRawBytes a =&gt; a -&gt; Text
+</span><span class="hs-identifier hs-var">serialiseToRawBytesHexText</span></span><span> </span><span class="annot"><span class="annottext">(ScriptHash -&gt; TxMetadataValue) -&gt; ScriptHash -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219619"><span class="hs-identifier hs-var">scriptHash</span></a></span><span>
+</span><span id="line-134"></span><span>                           </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[(TxMetadataValue, TxMetadataValue)] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaMap</span></span><span>
+</span><span id="line-135"></span><span>                             </span><span class="hs-special">[</span><span>
+</span><span id="line-136"></span><span>                               </span><span class="hs-special">(</span><span>
+</span><span id="line-137"></span><span>                                 </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue) -&gt; Text -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219607"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><span id="line-138"></span><span>                               </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[(TxMetadataValue, TxMetadataValue)] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaMap</span></span><span>
+</span><span id="line-139"></span><span>                                 </span><span class="hs-special">[</span><span>
+</span><span id="line-140"></span><span>                                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;name&quot;</span></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue)
+-&gt; (String -&gt; Text) -&gt; String -&gt; TxMetadataValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; TxMetadataValue) -&gt; String -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PIG &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219609"><span class="hs-identifier hs-var">chromosome</span></a></span><span>                         </span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;image&quot;</span></span><span>     </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue) -&gt; Text -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;ipfs://&quot;</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Text
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219608"><span class="hs-identifier hs-var">cid</span></a></span><span>                               </span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;ticker&quot;</span></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue) -&gt; Text -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219607"><span class="hs-identifier hs-var">name</span></a></span><span>                                           </span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;parents&quot;</span></span><span>   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[TxMetadataValue] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaList</span></span><span> </span><span class="annot"><span class="annottext">([TxMetadataValue] -&gt; TxMetadataValue)
+-&gt; [TxMetadataValue] -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue)
+-&gt; (ByteString -&gt; Text) -&gt; ByteString -&gt; TxMetadataValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Text) -&gt; (ByteString -&gt; String) -&gt; ByteString -&gt; Text
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PIG@&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(String -&gt; String)
+-&gt; (ByteString -&gt; String) -&gt; ByteString -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">BS.unpack</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; TxMetadataValue)
+-&gt; [ByteString] -&gt; [TxMetadataValue]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[ByteString]
+</span><a href="#local-6989586621679219618"><span class="hs-identifier hs-var">pigs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>                                 </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;url&quot;</span></span><span>       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;https://pigy.functionally.live&quot;</span></span><span>                        </span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>                                 </span><span class="hs-special">]</span><span>
+</span><span id="line-146"></span><span>                               </span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>                             </span><span class="hs-special">]</span><span>
+</span><span id="line-148"></span><span>                           </span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>                         </span><span class="hs-special">]</span><span>
+</span><span id="line-150"></span><span>                       </span><span class="hs-special">)</span><span>
+</span><span id="line-151"></span><span>                     </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-152"></span><span>                         </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">674</span></span><span>
+</span><span id="line-153"></span><span>                       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[(TxMetadataValue, TxMetadataValue)] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaMap</span></span><span>
+</span><span id="line-154"></span><span>                         </span><span class="hs-special">[</span><span>
+</span><span id="line-155"></span><span>                           </span><span class="hs-special">(</span><span>
+</span><span id="line-156"></span><span>                             </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;msg&quot;</span></span><span>
+</span><span id="line-157"></span><span>                           </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[TxMetadataValue] -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaList</span></span><span> </span><span class="annot"><span class="annottext">([TxMetadataValue] -&gt; TxMetadataValue)
+-&gt; [TxMetadataValue] -&gt; TxMetadataValue
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; TxMetadataValue
+</span><span class="hs-identifier hs-var">TxMetaText</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; TxMetadataValue)
+-&gt; (String -&gt; Text) -&gt; String -&gt; TxMetadataValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; TxMetadataValue) -&gt; [String] -&gt; [TxMetadataValue]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679219630"><span class="hs-identifier hs-var">message</span></a></span><span>
+</span><span id="line-158"></span><span>                           </span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>                         </span><span class="hs-special">]</span><span>
+</span><span id="line-160"></span><span>                       </span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>                     </span><span class="hs-special">]</span><span>
+</span><span id="line-162"></span><span>                 </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[(AssetId, Quantity)] -&gt; Value
+</span><span class="hs-identifier hs-var">valueFromList</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">PolicyId -&gt; AssetName -&gt; AssetId
+</span><span class="hs-identifier hs-var">AssetId</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptHash -&gt; PolicyId
+</span><span class="hs-identifier hs-var">PolicyId</span></span><span> </span><span class="annot"><span class="annottext">ScriptHash
+</span><a href="#local-6989586621679219619"><span class="hs-identifier hs-var">scriptHash</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; AssetName
+</span><span class="hs-identifier hs-var">AssetName</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; AssetName) -&gt; ByteString -&gt; AssetName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ByteString
+</span><span class="hs-identifier hs-var">BS.pack</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219607"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>  </span><span class="annot"><span class="annottext">Quantity
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-163"></span><span>                 </span><span class="hs-special">)</span><span>
+</span><span id="line-164"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-165"></span><span>      </span><span id="local-6989586621679219602"><span class="annot"><span class="annottext">value' :: Value
+</span><a href="#local-6989586621679219602"><span class="hs-identifier hs-var hs-var">value'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219631"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Value
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219616"><span class="hs-identifier hs-var">minting</span></a></span><span>
+</span><span id="line-166"></span><span>    </span><span id="local-6989586621679219601"><span class="annot"><span class="annottext">TxBodyContent MaryEra
+</span><a href="#local-6989586621679219601"><span class="hs-identifier hs-var">txBody</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">NetworkId
+-&gt; ProtocolParameters
+-&gt; Int
+-&gt; Int
+-&gt; Int
+-&gt; Int
+-&gt; TxBodyContent MaryEra
+-&gt; MantisM m (TxBodyContent MaryEra)
+forall (m :: * -&gt; *).
+(MonadFail m, MonadIO m) =&gt;
+NetworkId
+-&gt; ProtocolParameters
+-&gt; Int
+-&gt; Int
+-&gt; Int
+-&gt; Int
+-&gt; TxBodyContent MaryEra
+-&gt; MantisM m (TxBodyContent MaryEra)
+</span><span class="hs-identifier hs-var">includeFee</span></span><span> </span><span class="annot"><span class="annottext">NetworkId
+</span><a href="#local-6989586621679219653"><span class="hs-identifier hs-var">network</span></a></span><span> </span><span class="annot"><span class="annottext">ProtocolParameters
+</span><a href="#local-6989586621679219652"><span class="hs-identifier hs-var">pparams</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-167"></span><span>      </span><span class="annot"><span class="annottext">(TxBodyContent MaryEra -&gt; MantisM m (TxBodyContent MaryEra))
+-&gt; TxBodyContent MaryEra -&gt; MantisM m (TxBodyContent MaryEra)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[TxIn]
+-&gt; [TxOut MaryEra]
+-&gt; Maybe SlotNo
+-&gt; Maybe TxMetadata
+-&gt; Maybe (ScriptInEra MaryEra)
+-&gt; Maybe Value
+-&gt; TxBodyContent MaryEra
+</span><span class="hs-identifier hs-var">makeTransaction</span></span><span>
+</span><span id="line-168"></span><span>        </span><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679219633"><span class="hs-identifier hs-var">txIns</span></a></span><span>
+</span><span id="line-169"></span><span>        </span><span class="hs-special">[</span><span class="annot"><span class="annottext">MaryAddress -&gt; TxOutValue MaryEra -&gt; TxOut MaryEra
+forall era. AddressInEra era -&gt; TxOutValue era -&gt; TxOut era
+</span><span class="hs-identifier hs-var">TxOut</span></span><span> </span><span class="annot"><span class="annottext">MaryAddress
+</span><a href="#local-6989586621679219632"><span class="hs-identifier hs-var">destination</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MultiAssetSupportedInEra MaryEra -&gt; Value -&gt; TxOutValue MaryEra
+forall era. MultiAssetSupportedInEra era -&gt; Value -&gt; TxOutValue era
+</span><span class="hs-identifier hs-var">TxOutValue</span></span><span> </span><span class="annot"><span class="annottext">MultiAssetSupportedInEra MaryEra
+</span><span class="hs-identifier hs-var">supportedMultiAsset</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219602"><span class="hs-identifier hs-var">value'</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-170"></span><span>        </span><span class="annot"><span class="annottext">Maybe SlotNo
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-171"></span><span>        </span><span class="annot"><span class="annottext">Maybe TxMetadata
+</span><a href="#local-6989586621679219617"><span class="hs-identifier hs-var">metadata</span></a></span><span>
+</span><span id="line-172"></span><span>        </span><span class="annot"><span class="annottext">Maybe (ScriptInEra MaryEra)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-173"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Maybe Value
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679219616"><span class="hs-identifier hs-var">minting</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-174"></span><span>    </span><span id="local-6989586621679219598"><span class="annot"><span class="annottext">TxBody MaryEra
+</span><a href="#local-6989586621679219598"><span class="hs-identifier hs-var">txRaw</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Either (TxBodyError MaryEra) (TxBody MaryEra)
+-&gt; MantisM m (TxBody MaryEra)
+forall (m :: * -&gt; *) e a.
+(Monad m, Show e) =&gt;
+Either e a -&gt; MantisM m a
+</span><span class="hs-identifier hs-var">foistMantisEither</span></span><span> </span><span class="annot"><span class="annottext">(Either (TxBodyError MaryEra) (TxBody MaryEra)
+ -&gt; MantisM m (TxBody MaryEra))
+-&gt; Either (TxBodyError MaryEra) (TxBody MaryEra)
+-&gt; MantisM m (TxBody MaryEra)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxBodyContent MaryEra
+-&gt; Either (TxBodyError MaryEra) (TxBody MaryEra)
+forall era.
+IsCardanoEra era =&gt;
+TxBodyContent era -&gt; Either (TxBodyError era) (TxBody era)
+</span><span class="hs-identifier hs-var">makeTransactionBody</span></span><span> </span><span class="annot"><span class="annottext">TxBodyContent MaryEra
+</span><a href="#local-6989586621679219601"><span class="hs-identifier hs-var">txBody</span></a></span><span>
+</span><span id="line-175"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-176"></span><span>      </span><span id="local-6989586621679219597"><span class="annot"><span class="annottext">witness :: Witness MaryEra
+</span><a href="#local-6989586621679219597"><span class="hs-identifier hs-var hs-var">witness</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxBody MaryEra -&gt; ShelleyWitnessSigningKey -&gt; Witness MaryEra
+forall era.
+IsShelleyBasedEra era =&gt;
+TxBody era -&gt; ShelleyWitnessSigningKey -&gt; Witness era
+</span><span class="hs-identifier hs-var">makeShelleyKeyWitness</span></span><span> </span><span class="annot"><span class="annottext">TxBody MaryEra
+</span><a href="#local-6989586621679219598"><span class="hs-identifier hs-var">txRaw</span></a></span><span>
+</span><span id="line-177"></span><span>        </span><span class="annot"><span class="annottext">(ShelleyWitnessSigningKey -&gt; Witness MaryEra)
+-&gt; ShelleyWitnessSigningKey -&gt; Witness MaryEra
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentExtendedKey -&gt; ShelleyWitnessSigningKey
+</span><span class="hs-identifier hs-var">WitnessPaymentExtendedKey</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentExtendedKey
+</span><a href="#local-6989586621679219625"><span class="hs-identifier hs-var">signing</span></a></span><span>
+</span><span id="line-178"></span><span>      </span><span id="local-6989586621679219595"><span class="annot"><span class="annottext">witness' :: Witness MaryEra
+</span><a href="#local-6989586621679219595"><span class="hs-identifier hs-var hs-var">witness'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScriptInEra MaryEra -&gt; Witness MaryEra
+forall era. ScriptInEra era -&gt; Witness era
+</span><span class="hs-identifier hs-var">makeScriptWitness</span></span><span> </span><span class="annot"><span class="annottext">ScriptInEra MaryEra
+</span><a href="#local-6989586621679219620"><span class="hs-identifier hs-var">script</span></a></span><span>
+</span><span id="line-179"></span><span>      </span><span id="local-6989586621679219594"><span class="annot"><span class="annottext">txSigned :: Tx MaryEra
+</span><a href="#local-6989586621679219594"><span class="hs-identifier hs-var hs-var">txSigned</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Witness MaryEra] -&gt; TxBody MaryEra -&gt; Tx MaryEra
+forall era. [Witness era] -&gt; TxBody era -&gt; Tx era
+</span><span class="hs-identifier hs-var">makeSignedTransaction</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Witness MaryEra
+</span><a href="#local-6989586621679219597"><span class="hs-identifier hs-var">witness</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Witness MaryEra
+</span><a href="#local-6989586621679219595"><span class="hs-identifier hs-var">witness'</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">TxBody MaryEra
+</span><a href="#local-6989586621679219598"><span class="hs-identifier hs-var">txRaw</span></a></span><span>
+</span><span id="line-180"></span><span>    </span><span id="local-6989586621679219593"><span class="annot"><span class="annottext">SubmitResult (TxValidationErrorInMode CardanoMode)
+</span><a href="#local-6989586621679219593"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String
+-&gt; ConsensusModeParams CardanoMode
+-&gt; NetworkId
+-&gt; Tx MaryEra
+-&gt; MantisM m (SubmitResult (TxValidationErrorInMode CardanoMode))
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+String
+-&gt; ConsensusModeParams CardanoMode
+-&gt; NetworkId
+-&gt; Tx MaryEra
+-&gt; MantisM m (SubmitResult (TxValidationErrorInMode CardanoMode))
+</span><span class="hs-identifier hs-var">submitTransaction</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679219655"><span class="hs-identifier hs-var">socket</span></a></span><span> </span><span class="annot"><span class="annottext">ConsensusModeParams CardanoMode
+</span><a href="#local-6989586621679219654"><span class="hs-identifier hs-var">protocol</span></a></span><span> </span><span class="annot"><span class="annottext">NetworkId
+</span><a href="#local-6989586621679219653"><span class="hs-identifier hs-var">network</span></a></span><span> </span><span class="annot"><span class="annottext">Tx MaryEra
+</span><a href="#local-6989586621679219594"><span class="hs-identifier hs-var">txSigned</span></a></span><span>
+</span><span id="line-181"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SubmitResult (TxValidationErrorInMode CardanoMode)
+</span><a href="#local-6989586621679219593"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-182"></span><span>      </span><span class="annot"><span class="annottext">SubmitResult (TxValidationErrorInMode CardanoMode)
+</span><span class="hs-identifier hs-var">SubmitSuccess</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; MantisM m ()
+forall (m :: * -&gt; *). MonadIO m =&gt; String -&gt; MantisM m ()
+</span><span class="hs-identifier hs-var">printMantis</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; MantisM m ()) -&gt; String -&gt; MantisM m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  Success: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">TxId -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TxBody MaryEra -&gt; TxId
+forall era. TxBody era -&gt; TxId
+</span><span class="hs-identifier hs-var">getTxId</span></span><span> </span><span class="annot"><span class="annottext">TxBody MaryEra
+</span><a href="#local-6989586621679219598"><span class="hs-identifier hs-var">txRaw</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">SubmitFail</span></span><span> </span><span id="local-6989586621679219590"><span class="annot"><span class="annottext">TxValidationErrorInMode CardanoMode
+</span><a href="#local-6989586621679219590"><span class="hs-identifier hs-var">reason</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; MantisM m ()
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span>  </span><span class="annot"><span class="annottext">(String -&gt; MantisM m ()) -&gt; String -&gt; MantisM m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;  Failure: &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">TxValidationErrorInMode CardanoMode -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">TxValidationErrorInMode CardanoMode
+</span><a href="#local-6989586621679219590"><span class="hs-identifier hs-var">reason</span></a></span><span>
+</span><span id="line-184"></span></pre></body></html>

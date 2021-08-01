@@ -1,0 +1,642 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_3PwvkCYizKYEHGPCZqwoYq"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Image blending using a genetics strategy.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE RecordWildCards       #-}</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Pigy.Image</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- * Genotypes</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier">Genotype</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#newGenotype"><span class="hs-identifier">newGenotype</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#crossover"><span class="hs-identifier">crossover</span></a></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- * Chromosomes</span></span><span>
+</span><span id="line-27"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#fromChromosome"><span class="hs-identifier">fromChromosome</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#toChromosome"><span class="hs-identifier">toChromosome</span></a></span><span>
+</span><span id="line-29"></span><span class="annot"><span class="hs-comment">-- * Images</span></span><span>
+</span><span id="line-30"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#toImage"><span class="hs-identifier">toImage</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#toPngBytes"><span class="hs-identifier">toPngBytes</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.html#writeImage"><span class="hs-identifier">writeImage</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Codec.Picture</span></span><span>                       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">PixelRGBA8</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">encodePng</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">writePng</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Codec.Picture.Types</span></span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Image</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">liftIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Binary</span></span><span>                         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Binary</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Get</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">decode</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">encode</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>                           </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Graphics.Rasterific</span></span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">renderDrawing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">withTransformation</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Graphics.Rasterific.Texture</span></span><span>         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">uniformTexture</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Graphics.Rasterific.Transformations</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">scale</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html"><span class="hs-identifier">Pigy.Image.Drawing</span></a></span><span>                  </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.Drawing.html#drawBody"><span class="hs-identifier">drawBody</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#drawEars"><span class="hs-identifier">drawEars</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#drawEyes"><span class="hs-identifier">drawEyes</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#drawHead"><span class="hs-identifier">drawHead</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#drawNose"><span class="hs-identifier">drawNose</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#enlarge"><span class="hs-identifier">enlarge</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#height"><span class="hs-identifier">height</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier">skin</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#width"><span class="hs-identifier">width</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#withAspect"><span class="hs-identifier">withAspect</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Drawing.html#withScale"><span class="hs-identifier">withScale</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html"><span class="hs-identifier">Pigy.Image.Types</span></a></span><span>                    </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.Types.html#Chromosome"><span class="hs-identifier">Chromosome</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenable"><span class="hs-identifier">Phenable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier">Phenotype</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Upgradeable"><span class="hs-identifier">Upgradeable</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span>                       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Uniform</span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Internal</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">uniformM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Stateful</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StatefulGen</span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>        </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">pack</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unpack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Lazy</span></span><span>   </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">LBS</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ByteString</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">fromStrict</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toStrict</span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Base58</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Base58</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">bitcoinAlphabet</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">decodeBase58</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">encodeBase58</span></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Pigy.Image.V0.html"><span class="hs-identifier">Pigy.Image.V0</span></a></span><span>          </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">V0</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.V0.html#Genotype"><span class="hs-identifier">Genotype</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.V0.html#gid"><span class="hs-identifier">gid</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Pigy.Image.V1.html"><span class="hs-identifier">Pigy.Image.V1</span></a></span><span>          </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">V1</span></span><span>     </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier">Genotype</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#crossover"><span class="hs-identifier">crossover</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier">gid</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | A versioned genotype.</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">data</span><span> </span><span id="Genotype"><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-var">Genotype</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>    </span><span id="GenotypeV0"><span class="annot"><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-var">GenotypeV0</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Image.V0.html#Genotype"><span class="hs-identifier hs-type">V0.Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ Version 0.</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="GenotypeV1"><span class="annot"><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">V1.Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ Version 1.</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679218930"><span id="local-6989586621679218932"><span class="annot"><span class="annottext">Genotype -&gt; Genotype -&gt; Bool
+(Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool) -&gt; Eq Genotype
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Genotype -&gt; Genotype -&gt; Bool
+$c/= :: Genotype -&gt; Genotype -&gt; Bool
+== :: Genotype -&gt; Genotype -&gt; Bool
+$c== :: Genotype -&gt; Genotype -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218914"><span id="local-6989586621679218916"><span id="local-6989586621679218918"><span id="local-6989586621679218920"><span id="local-6989586621679218922"><span id="local-6989586621679218924"><span id="local-6989586621679218926"><span class="annot"><span class="annottext">Eq Genotype
+Eq Genotype
+-&gt; (Genotype -&gt; Genotype -&gt; Ordering)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Bool)
+-&gt; (Genotype -&gt; Genotype -&gt; Genotype)
+-&gt; (Genotype -&gt; Genotype -&gt; Genotype)
+-&gt; Ord Genotype
+Genotype -&gt; Genotype -&gt; Bool
+Genotype -&gt; Genotype -&gt; Ordering
+Genotype -&gt; Genotype -&gt; Genotype
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Genotype -&gt; Genotype -&gt; Genotype
+$cmin :: Genotype -&gt; Genotype -&gt; Genotype
+max :: Genotype -&gt; Genotype -&gt; Genotype
+$cmax :: Genotype -&gt; Genotype -&gt; Genotype
+&gt;= :: Genotype -&gt; Genotype -&gt; Bool
+$c&gt;= :: Genotype -&gt; Genotype -&gt; Bool
+&gt; :: Genotype -&gt; Genotype -&gt; Bool
+$c&gt; :: Genotype -&gt; Genotype -&gt; Bool
+&lt;= :: Genotype -&gt; Genotype -&gt; Bool
+$c&lt;= :: Genotype -&gt; Genotype -&gt; Bool
+&lt; :: Genotype -&gt; Genotype -&gt; Bool
+$c&lt; :: Genotype -&gt; Genotype -&gt; Bool
+compare :: Genotype -&gt; Genotype -&gt; Ordering
+$ccompare :: Genotype -&gt; Genotype -&gt; Ordering
+$cp1Ord :: Eq Genotype
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679218907"><span id="local-6989586621679218909"><span id="local-6989586621679218911"><span class="annot"><span class="annottext">Int -&gt; Genotype -&gt; ShowS
+[Genotype] -&gt; ShowS
+Genotype -&gt; String
+(Int -&gt; Genotype -&gt; ShowS)
+-&gt; (Genotype -&gt; String) -&gt; ([Genotype] -&gt; ShowS) -&gt; Show Genotype
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Genotype] -&gt; ShowS
+$cshowList :: [Genotype] -&gt; ShowS
+show :: Genotype -&gt; String
+$cshow :: Genotype -&gt; String
+showsPrec :: Int -&gt; Genotype -&gt; ShowS
+$cshowsPrec :: Int -&gt; Genotype -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Upgradeable"><span class="hs-identifier hs-type">Upgradeable</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621679218903"><span class="annot"><span class="annottext">upgrade :: Genotype -&gt; Genotype
+</span><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var hs-var hs-var hs-var">upgrade</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-type">GenotypeV0</span></a></span><span> </span><span id="local-6989586621679218901"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218901"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; Genotype -&gt; Genotype
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+forall g h. Upgradeable g h =&gt; g -&gt; h
+</span><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var">upgrade</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218901"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var">upgrade</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-type">GenotypeV1</span></a></span><span> </span><span id="local-6989586621679218900"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218900"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218900"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Upgradeable"><span class="hs-identifier hs-type">Upgradeable</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.V1.html#Genotype"><span class="hs-identifier hs-type">V1.Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621679218898"><span class="annot"><span class="annottext">upgrade :: Genotype -&gt; Genotype
+</span><a href="#local-6989586621679218898"><span class="hs-identifier hs-var hs-var hs-var hs-var">upgrade</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-type">GenotypeV0</span></a></span><span> </span><span id="local-6989586621679218897"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218897"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+forall g h. Upgradeable g h =&gt; g -&gt; h
+</span><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var">upgrade</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218897"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var">upgrade</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-type">GenotypeV1</span></a></span><span> </span><span id="local-6989586621679218896"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218896"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218896"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenable"><span class="hs-identifier hs-type">Phenable</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621679218893"><span class="annot"><span class="annottext">toPhenotype :: Genotype -&gt; Phenotype
+</span><a href="Pigy.Image.Types.html#toPhenotype"><span class="hs-identifier hs-var hs-var hs-var hs-var">toPhenotype</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-type">GenotypeV0</span></a></span><span> </span><span id="local-6989586621679218891"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218891"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Phenotype
+forall g. Phenable g =&gt; g -&gt; Phenotype
+</span><a href="Pigy.Image.Types.html#toPhenotype"><span class="hs-identifier hs-var">toPhenotype</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218891"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><a href="Pigy.Image.Types.html#toPhenotype"><span class="hs-identifier hs-var">toPhenotype</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-type">GenotypeV1</span></a></span><span> </span><span id="local-6989586621679218890"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218890"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Phenotype
+forall g. Phenable g =&gt; g -&gt; Phenotype
+</span><a href="Pigy.Image.Types.html#toPhenotype"><span class="hs-identifier hs-var">toPhenotype</span></a></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218890"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679218886"><span class="annot"><span class="hs-identifier hs-type">Binary</span></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621679218884"><span class="annot"><span class="annottext">put :: Genotype -&gt; Put
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">put</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-type">GenotypeV0</span></a></span><span> </span><span id="local-6989586621679218882"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218882"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="Pigy.Image.V0.html#gid"><span class="hs-identifier hs-var">V0.gid</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218882"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">put</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-type">GenotypeV1</span></a></span><span> </span><span id="local-6989586621679218881"><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218881"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier hs-var">V1.gid</span></a></span><span> </span><span class="annot"><span class="annottext">Put -&gt; Put -&gt; Put
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Put
+forall t. Binary t =&gt; t -&gt; Put
+</span><span class="hs-identifier hs-var">put</span></span><span> </span><span class="annot"><span class="annottext">Genotype
+</span><a href="#local-6989586621679218881"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621679218880"><span class="annot"><span class="annottext">get :: Get Genotype
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">get</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>          </span><span id="local-6989586621679218878"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218878"><span class="hs-identifier hs-var">gid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Get Word8
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Get</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-80"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218878"><span class="hs-identifier hs-var">gid</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="Pigy.Image.V1.html#gid"><span class="hs-identifier hs-var">V1.gid</span></a></span><span>
+</span><span id="line-81"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; Get Genotype -&gt; Get Genotype
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Genotype
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-82"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679218878"><span class="hs-identifier hs-var">gid</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="Pigy.Image.V0.html#gid"><span class="hs-identifier hs-var">V0.gid</span></a></span><span>
+</span><span id="line-83"></span><span>                    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-var">GenotypeV0</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; Get Genotype -&gt; Get Genotype
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Get Genotype
+forall t. Binary t =&gt; Get t
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-84"></span><span>                    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String -&gt; Get Genotype
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Invalid genome.&quot;</span></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Uniform</span></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621679218874"><span class="annot"><span class="annottext">uniformM :: g -&gt; m Genotype
+</span><a href="#local-6989586621679218874"><span class="hs-identifier hs-var hs-var hs-var hs-var">uniformM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; m Genotype -&gt; m Genotype
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span><span> </span><span class="annot"><span class="annottext">(m Genotype -&gt; m Genotype) -&gt; (g -&gt; m Genotype) -&gt; g -&gt; m Genotype
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">g -&gt; m Genotype
+forall a g (m :: * -&gt; *). (Uniform a, StatefulGen g m) =&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformM</span></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | Create a new genotype at random.</span><span>
+</span><span id="line-91"></span><span id="local-6989586621679218872"><span class="annot"><a href="Pigy.Image.html#newGenotype"><span class="hs-identifier hs-type">newGenotype</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679218872"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span>
+</span><span id="line-92"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218872"><span class="hs-identifier hs-type">g</span></a></span><span>           </span><span class="hs-comment">-- ^ The random-number generator.</span><span>
+</span><span id="line-93"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ The action to create the genotype.</span></span><span>
+</span><span id="line-94"></span><span id="newGenotype"><span class="annot"><span class="annottext">newGenotype :: g -&gt; IO Genotype
+</span><a href="Pigy.Image.html#newGenotype"><span class="hs-identifier hs-var hs-var">newGenotype</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g -&gt; IO Genotype
+forall a g (m :: * -&gt; *). (Uniform a, StatefulGen g m) =&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformM</span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Convert a genotype to a chromosome.</span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Pigy.Image.html#toChromosome"><span class="hs-identifier hs-type">toChromosome</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span>   </span><span class="hs-comment">-- ^ The genotype.</span><span>
+</span><span id="line-99"></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Chromosome"><span class="hs-identifier hs-type">Chromosome</span></a></span><span> </span><span class="hs-comment">-- ^ The chromosome.</span><span>
+</span><span id="line-100"></span><span id="toChromosome"><span class="annot"><span class="annottext">toChromosome :: Genotype -&gt; String
+</span><a href="Pigy.Image.html#toChromosome"><span class="hs-identifier hs-var hs-var">toChromosome</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-101"></span><span>    </span><span class="annot"><span class="annottext">(Word8 -&gt; Char) -&gt; [Word8] -&gt; String
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Char
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Char) -&gt; (Word8 -&gt; Int) -&gt; Word8 -&gt; Char
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>  </span><span class="annot"><span class="annottext">([Word8] -&gt; String) -&gt; (Genotype -&gt; [Word8]) -&gt; Genotype -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; [Word8]
+</span><span class="hs-identifier hs-var">BS.unpack</span></span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">(ByteString -&gt; [Word8])
+-&gt; (Genotype -&gt; ByteString) -&gt; Genotype -&gt; [Word8]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Alphabet -&gt; ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">Base58.encodeBase58</span></span><span> </span><span class="annot"><span class="annottext">Alphabet
+</span><span class="hs-identifier hs-var">Base58.bitcoinAlphabet</span></span><span>
+</span><span id="line-104"></span><span>  </span><span class="annot"><span class="annottext">(ByteString -&gt; ByteString)
+-&gt; (Genotype -&gt; ByteString) -&gt; Genotype -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">LBS.toStrict</span></span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="annottext">(ByteString -&gt; ByteString)
+-&gt; (Genotype -&gt; ByteString) -&gt; Genotype -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; ByteString
+forall a. Binary a =&gt; a -&gt; ByteString
+</span><span class="hs-identifier hs-var">encode</span></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- | Convert a chromosome to a genotype.</span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Pigy.Image.html#fromChromosome"><span class="hs-identifier hs-type">fromChromosome</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Chromosome"><span class="hs-identifier hs-type">Chromosome</span></a></span><span>     </span><span class="hs-comment">-- ^ The chromosome.</span><span>
+</span><span id="line-110"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ The genotype, if the chromosome was valid.</span><span>
+</span><span id="line-111"></span><span id="fromChromosome"><span class="annot"><span class="annottext">fromChromosome :: String -&gt; Maybe Genotype
+</span><a href="Pigy.Image.html#fromChromosome"><span class="hs-identifier hs-var hs-var">fromChromosome</span></a></span></span><span> </span><span id="local-6989586621679218869"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218869"><span class="hs-identifier hs-var">text</span></a></span></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218869"><span class="hs-identifier hs-var">text</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">15</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV0"><span class="hs-identifier hs-var">GenotypeV0</span></a></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; Maybe Genotype -&gt; Maybe Genotype
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe Genotype
+forall a. Binary a =&gt; String -&gt; Maybe a
+</span><a href="Pigy.Image.html#fromChromosome%27"><span class="hs-identifier hs-var">fromChromosome'</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218869"><span class="hs-identifier hs-var">text</span></a></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe Genotype
+forall a. Binary a =&gt; String -&gt; Maybe a
+</span><a href="Pigy.Image.html#fromChromosome%27"><span class="hs-identifier hs-var">fromChromosome'</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218869"><span class="hs-identifier hs-var">text</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- | Convert a chromosome to something serializable.</span><span>
+</span><span id="line-117"></span><span id="local-6989586621679219009"><span class="annot"><a href="Pigy.Image.html#fromChromosome%27"><span class="hs-identifier hs-type">fromChromosome'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Binary</span></span><span> </span><span class="annot"><a href="#local-6989586621679219009"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-118"></span><span>                </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Chromosome"><span class="hs-identifier hs-type">Chromosome</span></a></span><span> </span><span class="hs-comment">-- ^ The chromosome.</span><span>
+</span><span id="line-119"></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679219009"><span class="hs-identifier hs-type">a</span></a></span><span>    </span><span class="hs-comment">-- ^ The serializable, if the chromosome was valid.</span></span><span>
+</span><span id="line-120"></span><span id="fromChromosome%27"><span class="annot"><span class="annottext">fromChromosome' :: String -&gt; Maybe a
+</span><a href="Pigy.Image.html#fromChromosome%27"><span class="hs-identifier hs-var hs-var">fromChromosome'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-121"></span><span>    </span><span class="annot"><span class="annottext">(ByteString -&gt; a) -&gt; Maybe ByteString -&gt; Maybe a
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; a
+forall a. Binary a =&gt; ByteString -&gt; a
+</span><span class="hs-identifier hs-var">decode</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; a) -&gt; (ByteString -&gt; ByteString) -&gt; ByteString -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString
+</span><span class="hs-identifier hs-var">LBS.fromStrict</span></span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><span class="annottext">(Maybe ByteString -&gt; Maybe a)
+-&gt; (String -&gt; Maybe ByteString) -&gt; String -&gt; Maybe a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Alphabet -&gt; ByteString -&gt; Maybe ByteString
+</span><span class="hs-identifier hs-var">Base58.decodeBase58</span></span><span> </span><span class="annot"><span class="annottext">Alphabet
+</span><span class="hs-identifier hs-var">Base58.bitcoinAlphabet</span></span><span>
+</span><span id="line-123"></span><span>  </span><span class="annot"><span class="annottext">(ByteString -&gt; Maybe ByteString)
+-&gt; (String -&gt; ByteString) -&gt; String -&gt; Maybe ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Word8] -&gt; ByteString
+</span><span class="hs-identifier hs-var">BS.pack</span></span><span>
+</span><span id="line-124"></span><span>  </span><span class="annot"><span class="annottext">([Word8] -&gt; ByteString)
+-&gt; (String -&gt; [Word8]) -&gt; String -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Word8) -&gt; String -&gt; [Word8]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Word8
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Word8) -&gt; (Char -&gt; Int) -&gt; Char -&gt; Word8
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- | Perform crossover between genotypes.</span><span>
+</span><span id="line-128"></span><span id="local-6989586621679218865"><span id="local-6989586621679218866"><span class="annot"><a href="Pigy.Image.html#crossover"><span class="hs-identifier hs-type">crossover</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679218866"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-129"></span><span>          </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679218865"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679218866"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-130"></span><span>          </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218865"><span class="hs-identifier hs-type">g</span></a></span><span>          </span><span class="hs-comment">-- ^ The random-number generator.</span><span>
+</span><span id="line-131"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- ^ The genotypes to be crossed.</span><span>
+</span><span id="line-132"></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218866"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Pigy.Image.html#Genotype"><span class="hs-identifier hs-type">Genotype</span></a></span><span> </span><span class="hs-comment">-- ^ The action to cross the genotypes.</span></span></span><span>
+</span><span id="line-133"></span><span id="crossover"><span class="annot"><span class="annottext">crossover :: g -&gt; [Genotype] -&gt; m Genotype
+</span><a href="Pigy.Image.html#crossover"><span class="hs-identifier hs-var hs-var">crossover</span></a></span></span><span> </span><span id="local-6989586621679218864"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218864"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-134"></span><span>  </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; m Genotype -&gt; m Genotype
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+</span><a href="Pigy.Image.html#GenotypeV1"><span class="hs-identifier hs-var">GenotypeV1</span></a></span><span>
+</span><span id="line-135"></span><span>    </span><span class="annot"><span class="annottext">(m Genotype -&gt; m Genotype)
+-&gt; ([Genotype] -&gt; m Genotype) -&gt; [Genotype] -&gt; m Genotype
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">g -&gt; [Genotype] -&gt; m Genotype
+forall (m :: * -&gt; *) g.
+(MonadFail m, StatefulGen g m) =&gt;
+g -&gt; [Genotype] -&gt; m Genotype
+</span><a href="Pigy.Image.V1.html#crossover"><span class="hs-identifier hs-var">V1.crossover</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679218864"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><span class="annottext">([Genotype] -&gt; m Genotype)
+-&gt; ([Genotype] -&gt; [Genotype]) -&gt; [Genotype] -&gt; m Genotype
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Genotype -&gt; Genotype) -&gt; [Genotype] -&gt; [Genotype]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Genotype -&gt; Genotype
+forall g h. Upgradeable g h =&gt; g -&gt; h
+</span><a href="Pigy.Image.Types.html#upgrade"><span class="hs-identifier hs-var">upgrade</span></a></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- | Convert a phenotype to a PNG image.</span><span>
+</span><span id="line-140"></span><span class="annot"><a href="Pigy.Image.html#toPngBytes"><span class="hs-identifier hs-type">toPngBytes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier hs-type">Phenotype</span></a></span><span>      </span><span class="hs-comment">-- ^ The phenotype.</span><span>
+</span><span id="line-141"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">LBS.ByteString</span></span><span> </span><span class="hs-comment">-- ^ The PNG image bytes.</span><span>
+</span><span id="line-142"></span><span id="toPngBytes"><span class="annot"><span class="annottext">toPngBytes :: Phenotype -&gt; ByteString
+</span><a href="Pigy.Image.html#toPngBytes"><span class="hs-identifier hs-var hs-var">toPngBytes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Image PixelRGBA8 -&gt; ByteString
+forall a. PngSavable a =&gt; Image a -&gt; ByteString
+</span><span class="hs-identifier hs-var">encodePng</span></span><span> </span><span class="annot"><span class="annottext">(Image PixelRGBA8 -&gt; ByteString)
+-&gt; (Phenotype -&gt; Image PixelRGBA8) -&gt; Phenotype -&gt; ByteString
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Phenotype -&gt; Image PixelRGBA8
+</span><a href="Pigy.Image.html#toImage"><span class="hs-identifier hs-var">toImage</span></a></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- | Write a phenotype to a PNG file.</span><span>
+</span><span id="line-146"></span><span id="local-6989586621679218863"><span class="annot"><a href="Pigy.Image.html#writeImage"><span class="hs-identifier hs-type">writeImage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679218863"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-147"></span><span>           </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>  </span><span class="hs-comment">-- ^ The path to the PNG file.</span><span>
+</span><span id="line-148"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier hs-type">Phenotype</span></a></span><span> </span><span class="hs-comment">-- ^ The phenotype.</span><span>
+</span><span id="line-149"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679218863"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>      </span><span class="hs-comment">-- ^ The action to write the PNG file.</span></span><span>
+</span><span id="line-150"></span><span id="writeImage"><span class="annot"><span class="annottext">writeImage :: String -&gt; Phenotype -&gt; m ()
+</span><a href="Pigy.Image.html#writeImage"><span class="hs-identifier hs-var hs-var">writeImage</span></a></span></span><span> </span><span id="local-6989586621679218861"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218861"><span class="hs-identifier hs-var">filename</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-151"></span><span>    </span><span class="annot"><span class="annottext">IO () -&gt; m ()
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span>
+</span><span id="line-152"></span><span>  </span><span class="annot"><span class="annottext">(IO () -&gt; m ()) -&gt; (Phenotype -&gt; IO ()) -&gt; Phenotype -&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Image PixelRGBA8 -&gt; IO ()
+forall pixel. PngSavable pixel =&gt; String -&gt; Image pixel -&gt; IO ()
+</span><span class="hs-identifier hs-var">writePng</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679218861"><span class="hs-identifier hs-var">filename</span></a></span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="annottext">(Image PixelRGBA8 -&gt; IO ())
+-&gt; (Phenotype -&gt; Image PixelRGBA8) -&gt; Phenotype -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Phenotype -&gt; Image PixelRGBA8
+</span><a href="Pigy.Image.html#toImage"><span class="hs-identifier hs-var">toImage</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- | Convert a phenotype to an image.</span><span>
+</span><span id="line-157"></span><span class="annot"><a href="Pigy.Image.html#toImage"><span class="hs-identifier hs-type">toImage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier hs-type">Phenotype</span></a></span><span>        </span><span class="hs-comment">-- ^ The phenotype.</span><span>
+</span><span id="line-158"></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Image</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">PixelRGBA8</span></span><span> </span><span class="hs-comment">-- ^ The image.</span><span>
+</span><span id="line-159"></span><span id="toImage"><span class="annot"><span class="annottext">toImage :: Phenotype -&gt; Image PixelRGBA8
+</span><a href="Pigy.Image.html#toImage"><span class="hs-identifier hs-var hs-var">toImage</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Image.Types.html#Phenotype"><span class="hs-identifier hs-type">Phenotype</span></a></span><span class="hs-special">{</span><span id="local-6989586621679218848"><span id="local-6989586621679218849"><span id="local-6989586621679218850"><span id="local-6989586621679218851"><span id="local-6989586621679218852"><span id="local-6989586621679218853"><span id="local-6989586621679218854"><span id="local-6989586621679218855"><span id="local-6989586621679218856"><span id="local-6989586621679218857"><span id="local-6989586621679218858"><span id="local-6989586621679218859"><span class="annot"><span class="annottext">Float
+(Float, Float)
+PixelRGBA8
+eyeFraction :: Phenotype -&gt; Float
+eyeAngle :: Phenotype -&gt; Float
+bodyScale :: Phenotype -&gt; Float
+earScale :: Phenotype -&gt; (Float, Float)
+noseScale :: Phenotype -&gt; (Float, Float)
+eyeScale :: Phenotype -&gt; (Float, Float)
+headScale :: Phenotype -&gt; (Float, Float)
+aspect :: Phenotype -&gt; Float
+noseColor :: Phenotype -&gt; PixelRGBA8
+pupilColor :: Phenotype -&gt; PixelRGBA8
+eyeColor :: Phenotype -&gt; PixelRGBA8
+skinHue :: Phenotype -&gt; Float
+eyeFraction :: Float
+eyeAngle :: Float
+bodyScale :: Float
+earScale :: (Float, Float)
+noseScale :: (Float, Float)
+eyeScale :: (Float, Float)
+headScale :: (Float, Float)
+aspect :: Float
+noseColor :: PixelRGBA8
+pupilColor :: PixelRGBA8
+eyeColor :: PixelRGBA8
+skinHue :: Float
+</span><a href="Pigy.Image.Types.html#eyeFraction"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><span class="annottext">Int
+-&gt; Int -&gt; PixelRGBA8 -&gt; Drawing PixelRGBA8 () -&gt; Image PixelRGBA8
+forall px.
+RenderablePixel px =&gt;
+Int -&gt; Int -&gt; px -&gt; Drawing px () -&gt; Image px
+</span><span class="hs-identifier hs-var">renderDrawing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float -&gt; Int
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">(Float -&gt; Int) -&gt; Float -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#enlarge"><span class="hs-identifier hs-var">enlarge</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#width"><span class="hs-identifier hs-var">width</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float -&gt; Int
+forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">round</span></span><span> </span><span class="annot"><span class="annottext">(Float -&gt; Int) -&gt; Float -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#enlarge"><span class="hs-identifier hs-var">enlarge</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#height"><span class="hs-identifier hs-var">height</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Word8 -&gt; Word8 -&gt; PixelRGBA8
+</span><span class="hs-identifier hs-var">PixelRGBA8</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0xFF</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0xFF</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0xFF</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0x00</span></span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>    </span><span class="annot"><span class="annottext">(Drawing PixelRGBA8 () -&gt; Image PixelRGBA8)
+-&gt; (Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ())
+-&gt; Drawing PixelRGBA8 ()
+-&gt; Image PixelRGBA8
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Transformation -&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall px. Transformation -&gt; Drawing px () -&gt; Drawing px ()
+</span><span class="hs-identifier hs-var">withTransformation</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Transformation
+</span><span class="hs-identifier hs-var">scale</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#enlarge"><span class="hs-identifier hs-var">enlarge</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#enlarge"><span class="hs-identifier hs-var">enlarge</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>    </span><span class="annot"><span class="annottext">(Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ())
+-&gt; (Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ())
+-&gt; Drawing PixelRGBA8 ()
+-&gt; Drawing PixelRGBA8 ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Float
+-&gt; (Float, Float) -&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall px.
+Float -&gt; (Float, Float) -&gt; Drawing px () -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#withAspect"><span class="hs-identifier hs-var">withAspect</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218855"><span class="hs-identifier hs-var">aspect</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#width"><span class="hs-identifier hs-var">width</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-163"></span><span>    </span><span class="annot"><span class="annottext">(Drawing PixelRGBA8 () -&gt; Image PixelRGBA8)
+-&gt; Drawing PixelRGBA8 () -&gt; Image PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-164"></span><span>      </span><span class="hs-keyword">let</span><span>
+</span><span id="line-165"></span><span>        </span><span id="local-6989586621679218831"><span class="annot"><span class="annottext">pink1 :: Texture PixelRGBA8
+</span><a href="#local-6989586621679218831"><span class="hs-identifier hs-var hs-var">pink1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">(PixelRGBA8 -&gt; Texture PixelRGBA8)
+-&gt; PixelRGBA8 -&gt; Texture PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; PixelRGBA8
+</span><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier hs-var">skin</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218859"><span class="hs-identifier hs-var">skinHue</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.67</span></span><span>
+</span><span id="line-166"></span><span>        </span><span id="local-6989586621679218830"><span class="annot"><span class="annottext">pink2 :: Texture PixelRGBA8
+</span><a href="#local-6989586621679218830"><span class="hs-identifier hs-var hs-var">pink2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">(PixelRGBA8 -&gt; Texture PixelRGBA8)
+-&gt; PixelRGBA8 -&gt; Texture PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; PixelRGBA8
+</span><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier hs-var">skin</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218859"><span class="hs-identifier hs-var">skinHue</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.76</span></span><span>
+</span><span id="line-167"></span><span>        </span><span id="local-6989586621679218829"><span class="annot"><span class="annottext">pink3 :: Texture PixelRGBA8
+</span><a href="#local-6989586621679218829"><span class="hs-identifier hs-var hs-var">pink3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">(PixelRGBA8 -&gt; Texture PixelRGBA8)
+-&gt; PixelRGBA8 -&gt; Texture PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; PixelRGBA8
+</span><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier hs-var">skin</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218859"><span class="hs-identifier hs-var">skinHue</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.72</span></span><span>
+</span><span id="line-168"></span><span>        </span><span id="local-6989586621679218828"><span class="annot"><span class="annottext">pink4 :: Texture PixelRGBA8
+</span><a href="#local-6989586621679218828"><span class="hs-identifier hs-var hs-var">pink4</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">(PixelRGBA8 -&gt; Texture PixelRGBA8)
+-&gt; PixelRGBA8 -&gt; Texture PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; PixelRGBA8
+</span><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier hs-var">skin</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218859"><span class="hs-identifier hs-var">skinHue</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.63</span></span><span>
+</span><span id="line-169"></span><span>        </span><span id="local-6989586621679218827"><span class="annot"><span class="annottext">pink5 :: Texture PixelRGBA8
+</span><a href="#local-6989586621679218827"><span class="hs-identifier hs-var hs-var">pink5</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">(PixelRGBA8 -&gt; Texture PixelRGBA8)
+-&gt; PixelRGBA8 -&gt; Texture PixelRGBA8
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; PixelRGBA8
+</span><a href="Pigy.Image.Drawing.html#skin"><span class="hs-identifier hs-var">skin</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218859"><span class="hs-identifier hs-var">skinHue</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0.84</span></span><span>
+</span><span id="line-170"></span><span>      </span><span class="annot"><span class="annottext">Float
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Drawing PixelRGBA8 ()
+forall px.
+Float -&gt; Texture px -&gt; Texture px -&gt; Texture px -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#drawBody"><span class="hs-identifier hs-var">drawBody</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218850"><span class="hs-identifier hs-var">bodyScale</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218831"><span class="hs-identifier hs-var">pink1</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218830"><span class="hs-identifier hs-var">pink2</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218831"><span class="hs-identifier hs-var">pink1</span></a></span><span>
+</span><span id="line-171"></span><span>      </span><span class="annot"><span class="annottext">(Float, Float)
+-&gt; (Float, Float) -&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall px.
+(Float, Float) -&gt; (Float, Float) -&gt; Drawing px () -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#withScale"><span class="hs-identifier hs-var">withScale</span></a></span><span> </span><span class="annot"><span class="annottext">(Float, Float)
+</span><a href="#local-6989586621679218854"><span class="hs-identifier hs-var">headScale</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#width"><span class="hs-identifier hs-var">width</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">150</span></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>        </span><span class="annot"><span class="annottext">(Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ())
+-&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-173"></span><span>          </span><span class="annot"><span class="annottext">Texture PixelRGBA8 -&gt; Texture PixelRGBA8 -&gt; Drawing PixelRGBA8 ()
+forall px. Texture px -&gt; Texture px -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#drawHead"><span class="hs-identifier hs-var">drawHead</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218829"><span class="hs-identifier hs-var">pink3</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218828"><span class="hs-identifier hs-var">pink4</span></a></span><span>
+</span><span id="line-174"></span><span>          </span><span class="annot"><span class="annottext">(Float, Float)
+-&gt; (Float, Float)
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Drawing PixelRGBA8 ()
+forall px.
+(Float, Float)
+-&gt; (Float, Float) -&gt; Texture px -&gt; Texture px -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#drawEyes"><span class="hs-identifier hs-var">drawEyes</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218848"><span class="hs-identifier hs-var">eyeFraction</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679218849"><span class="hs-identifier hs-var">eyeAngle</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Float, Float)
+</span><a href="#local-6989586621679218853"><span class="hs-identifier hs-var">eyeScale</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">PixelRGBA8
+</span><a href="#local-6989586621679218858"><span class="hs-identifier hs-var">eyeColor</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">PixelRGBA8
+</span><a href="#local-6989586621679218857"><span class="hs-identifier hs-var">pupilColor</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span>          </span><span class="annot"><span class="annottext">(Float, Float)
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Drawing PixelRGBA8 ()
+forall px.
+(Float, Float) -&gt; Texture px -&gt; Texture px -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#drawEars"><span class="hs-identifier hs-var">drawEars</span></a></span><span> </span><span class="annot"><span class="annottext">(Float, Float)
+</span><a href="#local-6989586621679218851"><span class="hs-identifier hs-var">earScale</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218830"><span class="hs-identifier hs-var">pink2</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218831"><span class="hs-identifier hs-var">pink1</span></a></span><span>
+</span><span id="line-176"></span><span>          </span><span class="annot"><span class="annottext">(Float, Float)
+-&gt; (Float, Float) -&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall px.
+(Float, Float) -&gt; (Float, Float) -&gt; Drawing px () -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#withScale"><span class="hs-identifier hs-var">withScale</span></a></span><span> </span><span class="annot"><span class="annottext">(Float, Float)
+</span><a href="#local-6989586621679218852"><span class="hs-identifier hs-var">noseScale</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="Pigy.Image.Drawing.html#width"><span class="hs-identifier hs-var">width</span></a></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; Float
+forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">125</span></span><span class="hs-special">)</span><span>
+</span><span id="line-177"></span><span>            </span><span class="annot"><span class="annottext">(Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ())
+-&gt; Drawing PixelRGBA8 () -&gt; Drawing PixelRGBA8 ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Texture PixelRGBA8
+-&gt; Drawing PixelRGBA8 ()
+forall px.
+Texture px
+-&gt; Texture px -&gt; Texture px -&gt; Texture px -&gt; Drawing px ()
+</span><a href="Pigy.Image.Drawing.html#drawNose"><span class="hs-identifier hs-var">drawNose</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218827"><span class="hs-identifier hs-var">pink5</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218828"><span class="hs-identifier hs-var">pink4</span></a></span><span> </span><span class="annot"><span class="annottext">Texture PixelRGBA8
+</span><a href="#local-6989586621679218829"><span class="hs-identifier hs-var">pink3</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PixelRGBA8 -&gt; Texture PixelRGBA8
+forall px. px -&gt; Texture px
+</span><span class="hs-identifier hs-var">uniformTexture</span></span><span> </span><span class="annot"><span class="annottext">PixelRGBA8
+</span><a href="#local-6989586621679218856"><span class="hs-identifier hs-var">noseColor</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-178"></span></pre></body></html>

@@ -1,0 +1,591 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_JAUvnVppcmm9ICw6iBbpvw"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Types for the pig-image service.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE RecordWildCards #-}</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Pigy.Types</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-20"></span><span class="annot"><span class="hs-comment">-- * Configuration</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier">Configuration</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#readConfiguration"><span class="hs-identifier">readConfiguration</span></a></span><span>
+</span><span id="line-23"></span><span class="annot"><span class="hs-comment">-- * Context</span></span><span>
+</span><span id="line-24"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier">Context</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#makeContext"><span class="hs-identifier">makeContext</span></a></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- * Operations</span></span><span>
+</span><span id="line-27"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#Mode"><span class="hs-identifier">Mode</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="annot"><span class="hs-comment">-- * Keys</span></span><span>
+</span><span id="line-29"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier">KeyInfo</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier">KeyedAddress</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#readKeyedAddress"><span class="hs-identifier">readKeyedAddress</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Cardano.Api</span></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AddressInEra</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">AssetId</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">AsType</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AsAssetName</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">AsPolicyId</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">CardanoMode</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ConsensusModeParams</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">CardanoModeParams</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">EpochSlots</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Hash</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">MaryEra</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">NetworkId</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">NetworkMagic</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">PaymentKey</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">PaymentExtendedKey</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">SigningKey</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">anyAddressInShelleyBasedEra</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">deserialiseFromRawBytes</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">deserialiseFromRawBytesHex</span></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Cardano.Api.Shelley</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ProtocolParameters</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">liftIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word32</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Query</span></span><span>           </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">queryProtocol</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Types</span></span><span>           </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MantisM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">foistMantisMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Wallet</span></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">SomePaymentVerificationKey</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeVerificationKeyHash</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readAddress</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readSigningKey</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readVerificationKey</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StdGen</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getStdGen</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Stateful</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IOGenM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">newIOGenM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Char8</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">pack</span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | The service configuration.</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">data</span><span> </span><span id="Configuration"><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier hs-var">Configuration</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-50"></span><span>  </span><span id="Configuration"><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier hs-var">Configuration</span></a></span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-52"></span><span>    </span><span id="socketPath"><span class="annot"><span class="annottext">Configuration -&gt; FilePath
+</span><a href="Pigy.Types.html#socketPath"><span class="hs-identifier hs-var hs-var">socketPath</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>     </span><span class="hs-comment">-- ^ The path for the Cardano node's socket.</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="magic"><span class="annot"><span class="annottext">Configuration -&gt; Maybe Word32
+</span><a href="Pigy.Types.html#magic"><span class="hs-identifier hs-var hs-var">magic</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-comment">-- ^ The magic number for the Cardano network, unless using mainnet.</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="epochSlots"><span class="annot"><span class="annottext">Configuration -&gt; Word64
+</span><a href="Pigy.Types.html#epochSlots"><span class="hs-identifier hs-var hs-var">epochSlots</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>       </span><span class="hs-comment">-- ^ The number of slots per epoch.</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="policyId"><span class="annot"><span class="annottext">Configuration -&gt; FilePath
+</span><a href="Pigy.Types.html#policyId"><span class="hs-identifier hs-var hs-var">policyId</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>       </span><span class="hs-comment">-- ^ The policy ID of the payment token.</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="assetName"><span class="annot"><span class="annottext">Configuration -&gt; FilePath
+</span><a href="Pigy.Types.html#assetName"><span class="hs-identifier hs-var hs-var">assetName</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>       </span><span class="hs-comment">-- ^ The asset name of the payment token.</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="keyInfo"><span class="annot"><span class="annottext">Configuration -&gt; KeyInfo
+</span><a href="Pigy.Types.html#keyInfo"><span class="hs-identifier hs-var hs-var">keyInfo</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier hs-type">KeyInfo</span></a></span><span>      </span><span class="hs-comment">-- ^ The service's key.</span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="ipfsScript"><span class="annot"><span class="annottext">Configuration -&gt; FilePath
+</span><a href="Pigy.Types.html#ipfsScript"><span class="hs-identifier hs-var hs-var">ipfsScript</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>     </span><span class="hs-comment">-- ^ The path to the IPFS pinning script.</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="imageFolder"><span class="annot"><span class="annottext">Configuration -&gt; FilePath
+</span><a href="Pigy.Types.html#imageFolder"><span class="hs-identifier hs-var hs-var">imageFolder</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>     </span><span class="hs-comment">-- ^ The path to the folder of images.</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="mode"><span class="annot"><span class="annottext">Configuration -&gt; Mode
+</span><a href="Pigy.Types.html#mode"><span class="hs-identifier hs-var hs-var">mode</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Types.html#Mode"><span class="hs-identifier hs-type">Mode</span></a></span><span>         </span><span class="hs-comment">-- ^ The operational mode.</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="quiet"><span class="annot"><span class="annottext">Configuration -&gt; Bool
+</span><a href="Pigy.Types.html#quiet"><span class="hs-identifier hs-var hs-var">quiet</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>         </span><span class="hs-comment">-- ^ The verbosity.</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219383"><span id="local-6989586621679219385"><span id="local-6989586621679219387"><span id="local-6989586621679219389"><span class="annot"><span class="annottext">ReadPrec [Configuration]
+ReadPrec Configuration
+Int -&gt; ReadS Configuration
+ReadS [Configuration]
+(Int -&gt; ReadS Configuration)
+-&gt; ReadS [Configuration]
+-&gt; ReadPrec Configuration
+-&gt; ReadPrec [Configuration]
+-&gt; Read Configuration
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [Configuration]
+$creadListPrec :: ReadPrec [Configuration]
+readPrec :: ReadPrec Configuration
+$creadPrec :: ReadPrec Configuration
+readList :: ReadS [Configuration]
+$creadList :: ReadS [Configuration]
+readsPrec :: Int -&gt; ReadS Configuration
+$creadsPrec :: Int -&gt; ReadS Configuration
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219376"><span id="local-6989586621679219378"><span id="local-6989586621679219380"><span class="annot"><span class="annottext">Int -&gt; Configuration -&gt; ShowS
+[Configuration] -&gt; ShowS
+Configuration -&gt; FilePath
+(Int -&gt; Configuration -&gt; ShowS)
+-&gt; (Configuration -&gt; FilePath)
+-&gt; ([Configuration] -&gt; ShowS)
+-&gt; Show Configuration
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Configuration] -&gt; ShowS
+$cshowList :: [Configuration] -&gt; ShowS
+show :: Configuration -&gt; FilePath
+$cshow :: Configuration -&gt; FilePath
+showsPrec :: Int -&gt; Configuration -&gt; ShowS
+$cshowsPrec :: Int -&gt; Configuration -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | The operational mode.</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="Mode"><span class="annot"><a href="Pigy.Types.html#Mode"><span class="hs-identifier hs-var">Mode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>    </span><span id="Strict"><span class="annot"><a href="Pigy.Types.html#Strict"><span class="hs-identifier hs-var">Strict</span></a></span></span><span>     </span><span class="hs-comment">-- ^ Only accept requests as single transactions.</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Lenient"><span class="annot"><a href="Pigy.Types.html#Lenient"><span class="hs-identifier hs-var">Lenient</span></a></span></span><span>    </span><span class="hs-comment">-- ^ Accept split transactions, processing when idle.</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Aggressive"><span class="annot"><a href="Pigy.Types.html#Aggressive"><span class="hs-identifier hs-var">Aggressive</span></a></span></span><span> </span><span class="hs-comment">-- ^ Accept split transactions, processing as soon as possible.</span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219368"><span id="local-6989586621679219370"><span class="annot"><span class="annottext">Mode -&gt; Mode -&gt; Bool
+(Mode -&gt; Mode -&gt; Bool) -&gt; (Mode -&gt; Mode -&gt; Bool) -&gt; Eq Mode
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Mode -&gt; Mode -&gt; Bool
+$c/= :: Mode -&gt; Mode -&gt; Bool
+== :: Mode -&gt; Mode -&gt; Bool
+$c== :: Mode -&gt; Mode -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219352"><span id="local-6989586621679219354"><span id="local-6989586621679219356"><span id="local-6989586621679219358"><span id="local-6989586621679219360"><span id="local-6989586621679219362"><span id="local-6989586621679219364"><span class="annot"><span class="annottext">Eq Mode
+Eq Mode
+-&gt; (Mode -&gt; Mode -&gt; Ordering)
+-&gt; (Mode -&gt; Mode -&gt; Bool)
+-&gt; (Mode -&gt; Mode -&gt; Bool)
+-&gt; (Mode -&gt; Mode -&gt; Bool)
+-&gt; (Mode -&gt; Mode -&gt; Bool)
+-&gt; (Mode -&gt; Mode -&gt; Mode)
+-&gt; (Mode -&gt; Mode -&gt; Mode)
+-&gt; Ord Mode
+Mode -&gt; Mode -&gt; Bool
+Mode -&gt; Mode -&gt; Ordering
+Mode -&gt; Mode -&gt; Mode
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Mode -&gt; Mode -&gt; Mode
+$cmin :: Mode -&gt; Mode -&gt; Mode
+max :: Mode -&gt; Mode -&gt; Mode
+$cmax :: Mode -&gt; Mode -&gt; Mode
+&gt;= :: Mode -&gt; Mode -&gt; Bool
+$c&gt;= :: Mode -&gt; Mode -&gt; Bool
+&gt; :: Mode -&gt; Mode -&gt; Bool
+$c&gt; :: Mode -&gt; Mode -&gt; Bool
+&lt;= :: Mode -&gt; Mode -&gt; Bool
+$c&lt;= :: Mode -&gt; Mode -&gt; Bool
+&lt; :: Mode -&gt; Mode -&gt; Bool
+$c&lt; :: Mode -&gt; Mode -&gt; Bool
+compare :: Mode -&gt; Mode -&gt; Ordering
+$ccompare :: Mode -&gt; Mode -&gt; Ordering
+$cp1Ord :: Eq Mode
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219343"><span id="local-6989586621679219345"><span id="local-6989586621679219347"><span id="local-6989586621679219349"><span class="annot"><span class="annottext">ReadPrec [Mode]
+ReadPrec Mode
+Int -&gt; ReadS Mode
+ReadS [Mode]
+(Int -&gt; ReadS Mode)
+-&gt; ReadS [Mode] -&gt; ReadPrec Mode -&gt; ReadPrec [Mode] -&gt; Read Mode
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [Mode]
+$creadListPrec :: ReadPrec [Mode]
+readPrec :: ReadPrec Mode
+$creadPrec :: ReadPrec Mode
+readList :: ReadS [Mode]
+$creadList :: ReadS [Mode]
+readsPrec :: Int -&gt; ReadS Mode
+$creadsPrec :: Int -&gt; ReadS Mode
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219337"><span id="local-6989586621679219339"><span id="local-6989586621679219341"><span class="annot"><span class="annottext">Int -&gt; Mode -&gt; ShowS
+[Mode] -&gt; ShowS
+Mode -&gt; FilePath
+(Int -&gt; Mode -&gt; ShowS)
+-&gt; (Mode -&gt; FilePath) -&gt; ([Mode] -&gt; ShowS) -&gt; Show Mode
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Mode] -&gt; ShowS
+$cshowList :: [Mode] -&gt; ShowS
+show :: Mode -&gt; FilePath
+$cshow :: Mode -&gt; FilePath
+showsPrec :: Int -&gt; Mode -&gt; ShowS
+$cshowsPrec :: Int -&gt; Mode -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | Key information.</span><span>
+</span><span id="line-75"></span><span class="hs-keyword">data</span><span> </span><span id="KeyInfo"><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier hs-var">KeyInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-76"></span><span>  </span><span id="KeyInfo"><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier hs-var">KeyInfo</span></a></span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-78"></span><span>    </span><span id="addressString"><span class="annot"><span class="annottext">KeyInfo -&gt; FilePath
+</span><a href="Pigy.Types.html#addressString"><span class="hs-identifier hs-var hs-var">addressString</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>   </span><span class="hs-comment">-- ^ The address.</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="verificationKeyFile"><span class="annot"><span class="annottext">KeyInfo -&gt; FilePath
+</span><a href="Pigy.Types.html#verificationKeyFile"><span class="hs-identifier hs-var hs-var">verificationKeyFile</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-comment">-- ^ The path to the verification key file.</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="signingKeyFile"><span class="annot"><span class="annottext">KeyInfo -&gt; FilePath
+</span><a href="Pigy.Types.html#signingKeyFile"><span class="hs-identifier hs-var hs-var">signingKeyFile</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-comment">-- ^ The path to the signing key file.</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219325"><span id="local-6989586621679219327"><span id="local-6989586621679219329"><span id="local-6989586621679219331"><span class="annot"><span class="annottext">ReadPrec [KeyInfo]
+ReadPrec KeyInfo
+Int -&gt; ReadS KeyInfo
+ReadS [KeyInfo]
+(Int -&gt; ReadS KeyInfo)
+-&gt; ReadS [KeyInfo]
+-&gt; ReadPrec KeyInfo
+-&gt; ReadPrec [KeyInfo]
+-&gt; Read KeyInfo
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [KeyInfo]
+$creadListPrec :: ReadPrec [KeyInfo]
+readPrec :: ReadPrec KeyInfo
+$creadPrec :: ReadPrec KeyInfo
+readList :: ReadS [KeyInfo]
+$creadList :: ReadS [KeyInfo]
+readsPrec :: Int -&gt; ReadS KeyInfo
+$creadsPrec :: Int -&gt; ReadS KeyInfo
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219319"><span id="local-6989586621679219321"><span id="local-6989586621679219323"><span class="annot"><span class="annottext">Int -&gt; KeyInfo -&gt; ShowS
+[KeyInfo] -&gt; ShowS
+KeyInfo -&gt; FilePath
+(Int -&gt; KeyInfo -&gt; ShowS)
+-&gt; (KeyInfo -&gt; FilePath) -&gt; ([KeyInfo] -&gt; ShowS) -&gt; Show KeyInfo
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [KeyInfo] -&gt; ShowS
+$cshowList :: [KeyInfo] -&gt; ShowS
+show :: KeyInfo -&gt; FilePath
+$cshow :: KeyInfo -&gt; FilePath
+showsPrec :: Int -&gt; KeyInfo -&gt; ShowS
+$cshowsPrec :: Int -&gt; KeyInfo -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- | The contetual parameters for the service.</span><span>
+</span><span id="line-86"></span><span class="hs-keyword">data</span><span> </span><span id="Context"><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-var">Context</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-87"></span><span>  </span><span id="Context"><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-var">Context</span></a></span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-89"></span><span>    </span><span id="socket"><span class="annot"><span class="annottext">Context -&gt; FilePath
+</span><a href="Pigy.Types.html#socket"><span class="hs-identifier hs-var hs-var">socket</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>                        </span><span class="hs-comment">-- ^ The path for the Cardano node's socket.  </span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="protocol"><span class="annot"><span class="annottext">Context -&gt; ConsensusModeParams CardanoMode
+</span><a href="Pigy.Types.html#protocol"><span class="hs-identifier hs-var hs-var">protocol</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ConsensusModeParams</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">CardanoMode</span></span><span> </span><span class="hs-comment">-- ^ The Cardano consensus mode.</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="network"><span class="annot"><span class="annottext">Context -&gt; NetworkId
+</span><a href="Pigy.Types.html#network"><span class="hs-identifier hs-var hs-var">network</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NetworkId</span></span><span>                       </span><span class="hs-comment">-- ^ The Cardano network.</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="pparams"><span class="annot"><span class="annottext">Context -&gt; ProtocolParameters
+</span><a href="Pigy.Types.html#pparams"><span class="hs-identifier hs-var hs-var">pparams</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ProtocolParameters</span></span><span>              </span><span class="hs-comment">-- ^ The Cardano protocol.</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="token"><span class="annot"><span class="annottext">Context -&gt; AssetId
+</span><a href="Pigy.Types.html#token"><span class="hs-identifier hs-var hs-var">token</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AssetId</span></span><span>                         </span><span class="hs-comment">-- ^ The asset ID for the payment token.</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="keyedAddress"><span class="annot"><span class="annottext">Context -&gt; KeyedAddress
+</span><a href="Pigy.Types.html#keyedAddress"><span class="hs-identifier hs-var hs-var">keyedAddress</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-type">KeyedAddress</span></a></span><span>                    </span><span class="hs-comment">-- ^ The service address.</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="gRandom"><span class="annot"><span class="annottext">Context -&gt; IOGenM StdGen
+</span><a href="Pigy.Types.html#gRandom"><span class="hs-identifier hs-var hs-var">gRandom</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IOGenM</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">StdGen</span></span><span>                   </span><span class="hs-comment">-- ^ The random-number generator.</span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="ipfsPin"><span class="annot"><span class="annottext">Context -&gt; FilePath
+</span><a href="Pigy.Types.html#ipfsPin"><span class="hs-identifier hs-var hs-var">ipfsPin</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>                        </span><span class="hs-comment">-- ^ The path to the IPFS script for pinning images.</span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="images"><span class="annot"><span class="annottext">Context -&gt; FilePath
+</span><a href="Pigy.Types.html#images"><span class="hs-identifier hs-var hs-var">images</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>                        </span><span class="hs-comment">-- ^ The path to the folder for images.</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="operation"><span class="annot"><span class="annottext">Context -&gt; Mode
+</span><a href="Pigy.Types.html#operation"><span class="hs-identifier hs-var hs-var">operation</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Types.html#Mode"><span class="hs-identifier hs-type">Mode</span></a></span><span>                            </span><span class="hs-comment">-- ^ The operational mode.</span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="verbose"><span class="annot"><span class="annottext">Context -&gt; Bool
+</span><a href="Pigy.Types.html#verbose"><span class="hs-identifier hs-var hs-var">verbose</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>                            </span><span class="hs-comment">-- ^ The verbosity.</span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- | A key and it hashes.</span><span>
+</span><span id="line-104"></span><span class="hs-keyword">data</span><span> </span><span id="KeyedAddress"><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-var">KeyedAddress</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-105"></span><span>  </span><span id="KeyedAddress"><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-var">KeyedAddress</span></a></span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-107"></span><span>    </span><span id="keyAddress"><span class="annot"><span class="annottext">KeyedAddress -&gt; AddressInEra MaryEra
+</span><a href="Pigy.Types.html#keyAddress"><span class="hs-identifier hs-var hs-var">keyAddress</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AddressInEra</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaryEra</span></span><span>          </span><span class="hs-comment">-- ^ The address.</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="verificationHash"><span class="annot"><span class="annottext">KeyedAddress -&gt; Hash PaymentKey
+</span><a href="Pigy.Types.html#verificationHash"><span class="hs-identifier hs-var hs-var">verificationHash</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Hash</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">PaymentKey</span></span><span>               </span><span class="hs-comment">-- ^ The hash of the verification key.</span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="verification"><span class="annot"><span class="annottext">KeyedAddress -&gt; SomePaymentVerificationKey
+</span><a href="Pigy.Types.html#verification"><span class="hs-identifier hs-var hs-var">verification</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SomePaymentVerificationKey</span></span><span>    </span><span class="hs-comment">-- ^ The verification key.</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="signing"><span class="annot"><span class="annottext">KeyedAddress -&gt; SigningKey PaymentExtendedKey
+</span><a href="Pigy.Types.html#signing"><span class="hs-identifier hs-var hs-var">signing</span></a></span></span><span>          </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SigningKey</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">PaymentExtendedKey</span></span><span> </span><span class="hs-comment">-- ^ The signing key.</span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-112"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219296"><span id="local-6989586621679219298"><span id="local-6989586621679219300"><span class="annot"><span class="annottext">Int -&gt; KeyedAddress -&gt; ShowS
+[KeyedAddress] -&gt; ShowS
+KeyedAddress -&gt; FilePath
+(Int -&gt; KeyedAddress -&gt; ShowS)
+-&gt; (KeyedAddress -&gt; FilePath)
+-&gt; ([KeyedAddress] -&gt; ShowS)
+-&gt; Show KeyedAddress
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; FilePath) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [KeyedAddress] -&gt; ShowS
+$cshowList :: [KeyedAddress] -&gt; ShowS
+show :: KeyedAddress -&gt; FilePath
+$cshow :: KeyedAddress -&gt; FilePath
+showsPrec :: Int -&gt; KeyedAddress -&gt; ShowS
+$cshowsPrec :: Int -&gt; KeyedAddress -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- | Read a configuration file.</span><span>
+</span><span id="line-116"></span><span id="local-6989586621679219295"><span class="annot"><a href="Pigy.Types.html#readConfiguration"><span class="hs-identifier hs-type">readConfiguration</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219295"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-117"></span><span>                  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>                </span><span class="hs-comment">-- ^ The path to the configuration file.</span><span>
+</span><span id="line-118"></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MantisM</span></span><span> </span><span class="annot"><a href="#local-6989586621679219295"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span> </span><span class="hs-comment">-- ^ The action returning the configuration.</span></span><span>
+</span><span id="line-119"></span><span id="readConfiguration"><span class="annot"><span class="annottext">readConfiguration :: FilePath -&gt; MantisM m Configuration
+</span><a href="Pigy.Types.html#readConfiguration"><span class="hs-identifier hs-var hs-var">readConfiguration</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO Configuration -&gt; MantisM m Configuration
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO Configuration -&gt; MantisM m Configuration)
+-&gt; (FilePath -&gt; IO Configuration)
+-&gt; FilePath
+-&gt; MantisM m Configuration
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(FilePath -&gt; Configuration) -&gt; IO FilePath -&gt; IO Configuration
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Configuration
+forall a. Read a =&gt; FilePath -&gt; a
+</span><span class="hs-identifier hs-var">read</span></span><span> </span><span class="annot"><span class="annottext">(IO FilePath -&gt; IO Configuration)
+-&gt; (FilePath -&gt; IO FilePath) -&gt; FilePath -&gt; IO Configuration
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+</span><span class="hs-identifier hs-var">readFile</span></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- | Convert a configuration into a service context.</span><span>
+</span><span id="line-123"></span><span id="local-6989586621679219291"><span class="annot"><a href="Pigy.Types.html#makeContext"><span class="hs-identifier hs-type">makeContext</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679219291"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-124"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219291"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-125"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span>     </span><span class="hs-comment">-- ^ The configuration.</span><span>
+</span><span id="line-126"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MantisM</span></span><span> </span><span class="annot"><a href="#local-6989586621679219291"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-type">Context</span></a></span><span> </span><span class="hs-comment">-- ^ The action returning the context.</span></span><span>
+</span><span id="line-127"></span><span id="makeContext"><span class="annot"><span class="annottext">makeContext :: Configuration -&gt; MantisM m Context
+</span><a href="Pigy.Types.html#makeContext"><span class="hs-identifier hs-var hs-var">makeContext</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span class="hs-special">{</span><span id="local-6989586621679219281"><span id="local-6989586621679219282"><span id="local-6989586621679219283"><span id="local-6989586621679219284"><span id="local-6989586621679219285"><span id="local-6989586621679219286"><span id="local-6989586621679219287"><span id="local-6989586621679219288"><span id="local-6989586621679219289"><span id="local-6989586621679219290"><span class="annot"><span class="annottext">Bool
+FilePath
+Maybe Word32
+Word64
+KeyInfo
+Mode
+quiet :: Bool
+mode :: Mode
+imageFolder :: FilePath
+ipfsScript :: FilePath
+keyInfo :: KeyInfo
+assetName :: FilePath
+policyId :: FilePath
+epochSlots :: Word64
+magic :: Maybe Word32
+socketPath :: FilePath
+quiet :: Configuration -&gt; Bool
+mode :: Configuration -&gt; Mode
+imageFolder :: Configuration -&gt; FilePath
+ipfsScript :: Configuration -&gt; FilePath
+keyInfo :: Configuration -&gt; KeyInfo
+assetName :: Configuration -&gt; FilePath
+policyId :: Configuration -&gt; FilePath
+epochSlots :: Configuration -&gt; Word64
+magic :: Configuration -&gt; Maybe Word32
+socketPath :: Configuration -&gt; FilePath
+</span><a href="#local-6989586621679219281"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>    </span><span id="local-6989586621679219280"><span class="annot"><span class="annottext">PolicyId
+</span><a href="#local-6989586621679219280"><span class="hs-identifier hs-var">policyId'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-130"></span><span>      </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe PolicyId -&gt; MantisM m PolicyId
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+FilePath -&gt; Maybe a -&gt; MantisM m a
+</span><span class="hs-identifier hs-var">foistMantisMaybe</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;Could not decode policy ID.&quot;</span></span><span>
+</span><span id="line-131"></span><span>        </span><span class="annot"><span class="annottext">(Maybe PolicyId -&gt; MantisM m PolicyId)
+-&gt; (ByteString -&gt; Maybe PolicyId)
+-&gt; ByteString
+-&gt; MantisM m PolicyId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AsType PolicyId -&gt; ByteString -&gt; Maybe PolicyId
+forall a.
+SerialiseAsRawBytes a =&gt;
+AsType a -&gt; ByteString -&gt; Maybe a
+</span><span class="hs-identifier hs-var">deserialiseFromRawBytesHex</span></span><span> </span><span class="annot"><span class="annottext">AsType PolicyId
+</span><span class="hs-identifier hs-var">AsPolicyId</span></span><span>
+</span><span id="line-132"></span><span>        </span><span class="annot"><span class="annottext">(ByteString -&gt; MantisM m PolicyId)
+-&gt; ByteString -&gt; MantisM m PolicyId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; ByteString
+</span><span class="hs-identifier hs-var">BS.pack</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219287"><span class="hs-identifier hs-var">policyId</span></a></span><span>
+</span><span id="line-133"></span><span>    </span><span id="local-6989586621679219279"><span class="annot"><span class="annottext">AssetName
+</span><a href="#local-6989586621679219279"><span class="hs-identifier hs-var">assetName'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-134"></span><span>      </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe AssetName -&gt; MantisM m AssetName
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+FilePath -&gt; Maybe a -&gt; MantisM m a
+</span><span class="hs-identifier hs-var">foistMantisMaybe</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;Could not decode asset name.&quot;</span></span><span>
+</span><span id="line-135"></span><span>        </span><span class="annot"><span class="annottext">(Maybe AssetName -&gt; MantisM m AssetName)
+-&gt; (ByteString -&gt; Maybe AssetName)
+-&gt; ByteString
+-&gt; MantisM m AssetName
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AsType AssetName -&gt; ByteString -&gt; Maybe AssetName
+forall a.
+SerialiseAsRawBytes a =&gt;
+AsType a -&gt; ByteString -&gt; Maybe a
+</span><span class="hs-identifier hs-var">deserialiseFromRawBytes</span></span><span> </span><span class="annot"><span class="annottext">AsType AssetName
+</span><span class="hs-identifier hs-var">AsAssetName</span></span><span>
+</span><span id="line-136"></span><span>        </span><span class="annot"><span class="annottext">(ByteString -&gt; MantisM m AssetName)
+-&gt; ByteString -&gt; MantisM m AssetName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; ByteString
+</span><span class="hs-identifier hs-var">BS.pack</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219286"><span class="hs-identifier hs-var">assetName</span></a></span><span>
+</span><span id="line-137"></span><span>    </span><span id="local-6989586621679219278"><span class="annot"><span class="annottext">KeyedAddress
+</span><a href="#local-6989586621679219278"><span class="hs-identifier hs-var">keyedAddress</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">KeyInfo -&gt; MantisM m KeyedAddress
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+KeyInfo -&gt; MantisM m KeyedAddress
+</span><a href="Pigy.Types.html#readKeyedAddress"><span class="hs-identifier hs-var">readKeyedAddress</span></a></span><span> </span><span class="annot"><span class="annottext">KeyInfo
+</span><a href="#local-6989586621679219285"><span class="hs-identifier hs-var">keyInfo</span></a></span><span>
+</span><span id="line-138"></span><span>    </span><span id="local-6989586621679219277"><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679219277"><span class="hs-identifier hs-var">gRandom</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">StdGen -&gt; MantisM m (IOGenM StdGen)
+forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
+</span><span class="hs-identifier hs-var">newIOGenM</span></span><span> </span><span class="annot"><span class="annottext">(StdGen -&gt; MantisM m (IOGenM StdGen))
+-&gt; MantisM m StdGen -&gt; MantisM m (IOGenM StdGen)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">MantisM m StdGen
+forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
+</span><span class="hs-identifier hs-var">getStdGen</span></span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-140"></span><span>      </span><span id="local-6989586621679219275"><span class="annot"><span class="annottext">socket :: FilePath
+</span><a href="#local-6989586621679219275"><span class="hs-identifier hs-var hs-var">socket</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219290"><span class="hs-identifier hs-var">socketPath</span></a></span><span>
+</span><span id="line-141"></span><span>      </span><span id="local-6989586621679219274"><span class="annot"><span class="annottext">protocol :: ConsensusModeParams CardanoMode
+</span><a href="#local-6989586621679219274"><span class="hs-identifier hs-var hs-var">protocol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">EpochSlots -&gt; ConsensusModeParams CardanoMode
+</span><span class="hs-identifier hs-var">CardanoModeParams</span></span><span> </span><span class="annot"><span class="annottext">(EpochSlots -&gt; ConsensusModeParams CardanoMode)
+-&gt; EpochSlots -&gt; ConsensusModeParams CardanoMode
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; EpochSlots
+</span><span class="hs-identifier hs-var">EpochSlots</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621679219288"><span class="hs-identifier hs-var">epochSlots</span></a></span><span>
+</span><span id="line-142"></span><span>      </span><span id="local-6989586621679219272"><span class="annot"><span class="annottext">network :: NetworkId
+</span><a href="#local-6989586621679219272"><span class="hs-identifier hs-var hs-var">network</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NetworkId -&gt; (Word32 -&gt; NetworkId) -&gt; Maybe Word32 -&gt; NetworkId
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">NetworkId
+</span><span class="hs-identifier hs-var">Mainnet</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">NetworkMagic -&gt; NetworkId
+</span><span class="hs-identifier hs-var">Testnet</span></span><span> </span><span class="annot"><span class="annottext">(NetworkMagic -&gt; NetworkId)
+-&gt; (Word32 -&gt; NetworkMagic) -&gt; Word32 -&gt; NetworkId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; NetworkMagic
+</span><span class="hs-identifier hs-var">NetworkMagic</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe Word32
+</span><a href="#local-6989586621679219289"><span class="hs-identifier hs-var">magic</span></a></span><span>
+</span><span id="line-143"></span><span>      </span><span id="local-6989586621679219267"><span class="annot"><span class="annottext">token :: AssetId
+</span><a href="#local-6989586621679219267"><span class="hs-identifier hs-var hs-var">token</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PolicyId -&gt; AssetName -&gt; AssetId
+</span><span class="hs-identifier hs-var">AssetId</span></span><span> </span><span class="annot"><span class="annottext">PolicyId
+</span><a href="#local-6989586621679219280"><span class="hs-identifier hs-var">policyId'</span></a></span><span> </span><span class="annot"><span class="annottext">AssetName
+</span><a href="#local-6989586621679219279"><span class="hs-identifier hs-var">assetName'</span></a></span><span>
+</span><span id="line-144"></span><span>      </span><span id="local-6989586621679219265"><span class="annot"><span class="annottext">ipfsPin :: FilePath
+</span><a href="#local-6989586621679219265"><span class="hs-identifier hs-var hs-var">ipfsPin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219284"><span class="hs-identifier hs-var">ipfsScript</span></a></span><span>
+</span><span id="line-145"></span><span>      </span><span id="local-6989586621679219264"><span class="annot"><span class="annottext">images :: FilePath
+</span><a href="#local-6989586621679219264"><span class="hs-identifier hs-var hs-var">images</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219283"><span class="hs-identifier hs-var">imageFolder</span></a></span><span>
+</span><span id="line-146"></span><span>      </span><span id="local-6989586621679219263"><span class="annot"><span class="annottext">operation :: Mode
+</span><a href="#local-6989586621679219263"><span class="hs-identifier hs-var hs-var">operation</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mode
+</span><a href="#local-6989586621679219282"><span class="hs-identifier hs-var">mode</span></a></span><span>
+</span><span id="line-147"></span><span>      </span><span id="local-6989586621679219262"><span class="annot"><span class="annottext">verbose :: Bool
+</span><a href="#local-6989586621679219262"><span class="hs-identifier hs-var hs-var">verbose</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679219281"><span class="hs-identifier hs-var">quiet</span></a></span><span>
+</span><span id="line-148"></span><span>    </span><span id="local-6989586621679219260"><span class="annot"><span class="annottext">ProtocolParameters
+</span><a href="#local-6989586621679219260"><span class="hs-identifier hs-var">pparams</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath
+-&gt; ConsensusModeParams CardanoMode
+-&gt; NetworkId
+-&gt; MantisM m ProtocolParameters
+forall (m :: * -&gt; *).
+(MonadFail m, MonadIO m) =&gt;
+FilePath
+-&gt; ConsensusModeParams CardanoMode
+-&gt; NetworkId
+-&gt; MantisM m ProtocolParameters
+</span><span class="hs-identifier hs-var">queryProtocol</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219290"><span class="hs-identifier hs-var">socketPath</span></a></span><span> </span><span class="annot"><span class="annottext">ConsensusModeParams CardanoMode
+</span><a href="#local-6989586621679219274"><span class="hs-identifier hs-var">protocol</span></a></span><span> </span><span class="annot"><span class="annottext">NetworkId
+</span><a href="#local-6989586621679219272"><span class="hs-identifier hs-var">network</span></a></span><span>
+</span><span id="line-149"></span><span>    </span><span class="annot"><span class="annottext">Context -&gt; MantisM m Context
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Context :: FilePath
+-&gt; ConsensusModeParams CardanoMode
+-&gt; NetworkId
+-&gt; ProtocolParameters
+-&gt; AssetId
+-&gt; KeyedAddress
+-&gt; IOGenM StdGen
+-&gt; FilePath
+-&gt; FilePath
+-&gt; Mode
+-&gt; Bool
+-&gt; Context
+</span><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-type">Context</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">Bool
+FilePath
+IOGenM StdGen
+ConsensusModeParams CardanoMode
+NetworkId
+AssetId
+ProtocolParameters
+KeyedAddress
+Mode
+pparams :: ProtocolParameters
+verbose :: Bool
+operation :: Mode
+images :: FilePath
+ipfsPin :: FilePath
+token :: AssetId
+network :: NetworkId
+protocol :: ConsensusModeParams CardanoMode
+socket :: FilePath
+gRandom :: IOGenM StdGen
+keyedAddress :: KeyedAddress
+verbose :: Bool
+operation :: Mode
+images :: FilePath
+ipfsPin :: FilePath
+gRandom :: IOGenM StdGen
+keyedAddress :: KeyedAddress
+token :: AssetId
+pparams :: ProtocolParameters
+network :: NetworkId
+protocol :: ConsensusModeParams CardanoMode
+socket :: FilePath
+</span><a href="#local-6989586621679219260"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- | Read a key.</span><span>
+</span><span id="line-153"></span><span id="local-6989586621679219446"><span class="annot"><a href="Pigy.Types.html#readKeyedAddress"><span class="hs-identifier hs-type">readKeyedAddress</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219446"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-154"></span><span>                 </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier hs-type">KeyInfo</span></a></span><span>                </span><span class="hs-comment">-- ^ The key information.</span><span>
+</span><span id="line-155"></span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MantisM</span></span><span> </span><span class="annot"><a href="#local-6989586621679219446"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-type">KeyedAddress</span></a></span><span> </span><span class="hs-comment">-- ^ The key and its hashes.</span></span><span>
+</span><span id="line-156"></span><span id="readKeyedAddress"><span class="annot"><span class="annottext">readKeyedAddress :: KeyInfo -&gt; MantisM m KeyedAddress
+</span><a href="Pigy.Types.html#readKeyedAddress"><span class="hs-identifier hs-var hs-var">readKeyedAddress</span></a></span></span><span> </span><span class="annot"><a href="Pigy.Types.html#KeyInfo"><span class="hs-identifier hs-type">KeyInfo</span></a></span><span class="hs-special">{</span><span id="local-6989586621679219257"><span id="local-6989586621679219258"><span id="local-6989586621679219259"><span class="annot"><span class="annottext">FilePath
+signingKeyFile :: FilePath
+verificationKeyFile :: FilePath
+addressString :: FilePath
+signingKeyFile :: KeyInfo -&gt; FilePath
+verificationKeyFile :: KeyInfo -&gt; FilePath
+addressString :: KeyInfo -&gt; FilePath
+</span><a href="#local-6989586621679219257"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-158"></span><span>    </span><span id="local-6989586621679219256"><span class="annot"><span class="annottext">AddressInEra MaryEra
+</span><a href="#local-6989586621679219256"><span class="hs-identifier hs-var">keyAddress</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">AddressAny -&gt; AddressInEra MaryEra
+forall era. IsShelleyBasedEra era =&gt; AddressAny -&gt; AddressInEra era
+</span><span class="hs-identifier hs-var">anyAddressInShelleyBasedEra</span></span><span> </span><span class="annot"><span class="annottext">(AddressAny -&gt; AddressInEra MaryEra)
+-&gt; MantisM m AddressAny -&gt; MantisM m (AddressInEra MaryEra)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; MantisM m AddressAny
+forall (m :: * -&gt; *). Monad m =&gt; FilePath -&gt; MantisM m AddressAny
+</span><span class="hs-identifier hs-var">readAddress</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219259"><span class="hs-identifier hs-var">addressString</span></a></span><span>
+</span><span id="line-159"></span><span>    </span><span id="local-6989586621679219254"><span class="annot"><span class="annottext">SomePaymentVerificationKey
+</span><a href="#local-6989586621679219254"><span class="hs-identifier hs-var">verification</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; MantisM m SomePaymentVerificationKey
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+FilePath -&gt; MantisM m SomePaymentVerificationKey
+</span><span class="hs-identifier hs-var">readVerificationKey</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219258"><span class="hs-identifier hs-var">verificationKeyFile</span></a></span><span>
+</span><span id="line-160"></span><span>    </span><span id="local-6989586621679219253"><span class="annot"><span class="annottext">SigningKey PaymentExtendedKey
+</span><a href="#local-6989586621679219253"><span class="hs-identifier hs-var">signing</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; MantisM m (SigningKey PaymentExtendedKey)
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+FilePath -&gt; MantisM m (SigningKey PaymentExtendedKey)
+</span><span class="hs-identifier hs-var">readSigningKey</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679219257"><span class="hs-identifier hs-var">signingKeyFile</span></a></span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-162"></span><span>      </span><span id="local-6989586621679219252"><span class="annot"><span class="annottext">verificationHash :: Hash PaymentKey
+</span><a href="#local-6989586621679219252"><span class="hs-identifier hs-var hs-var">verificationHash</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SomePaymentVerificationKey -&gt; Hash PaymentKey
+</span><span class="hs-identifier hs-var">makeVerificationKeyHash</span></span><span> </span><span class="annot"><span class="annottext">SomePaymentVerificationKey
+</span><a href="#local-6989586621679219254"><span class="hs-identifier hs-var">verification</span></a></span><span>
+</span><span id="line-163"></span><span>    </span><span class="annot"><span class="annottext">KeyedAddress -&gt; MantisM m KeyedAddress
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">KeyedAddress :: AddressInEra MaryEra
+-&gt; Hash PaymentKey
+-&gt; SomePaymentVerificationKey
+-&gt; SigningKey PaymentExtendedKey
+-&gt; KeyedAddress
+</span><a href="Pigy.Types.html#KeyedAddress"><span class="hs-identifier hs-type">KeyedAddress</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">SomePaymentVerificationKey
+AddressInEra MaryEra
+Hash PaymentKey
+SigningKey PaymentExtendedKey
+verificationHash :: Hash PaymentKey
+signing :: SigningKey PaymentExtendedKey
+verification :: SomePaymentVerificationKey
+keyAddress :: AddressInEra MaryEra
+signing :: SigningKey PaymentExtendedKey
+verification :: SomePaymentVerificationKey
+verificationHash :: Hash PaymentKey
+keyAddress :: AddressInEra MaryEra
+</span><a href="#local-6989586621679219252"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-164"></span></pre></body></html>

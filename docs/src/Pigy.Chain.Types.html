@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Types for chain operations.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Pigy.Chain.Types</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-17"></span><span class="annot"><span class="hs-comment">-- * Addresses</span></span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier">MaryAddress</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryScript"><span class="hs-identifier">MaryScript</span></a></span><span>
+</span><span id="line-20"></span><span class="annot"><span class="hs-comment">-- * Tracking</span></span><span>
+</span><span id="line-21"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Origins"><span class="hs-identifier">Origins</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Pendings"><span class="hs-identifier">Pendings</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#History"><span class="hs-identifier">History</span></a></span><span>
+</span><span id="line-24"></span><span class="annot"><span class="hs-comment">-- * State</span></span><span>
+</span><span id="line-25"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Chain"><span class="hs-identifier">Chain</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier">ChainState</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#activeLens"><span class="hs-identifier">activeLens</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#currentLens"><span class="hs-identifier">currentLens</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#originsLens"><span class="hs-identifier">originsLens</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#pendingsLens"><span class="hs-identifier">pendingsLens</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#historyLens"><span class="hs-identifier">historyLens</span></a></span><span>
+</span><span id="line-32"></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#withChainState"><span class="hs-identifier">withChainState</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Cardano.Api</span></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AddressInEra</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">MaryEra</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ScriptHash</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ScriptInEra</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">SlotNo</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">TxIn</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Value</span></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Lens'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">lens</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StateT</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Default</span></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Default</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span>                 </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IORef</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readIORef</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">writeIORef</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Types.html"><span class="hs-identifier">Pigy.Types</span></a></span><span>                 </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier">Context</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">M</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">empty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | A Mary address.</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">type</span><span> </span><span id="MaryAddress"><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier hs-var">MaryAddress</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">AddressInEra</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaryEra</span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | A Mary script.</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">type</span><span> </span><span id="MaryScript"><span class="annot"><a href="Pigy.Chain.Types.html#MaryScript"><span class="hs-identifier hs-var">MaryScript</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ScriptInEra</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaryEra</span></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | Map of origins of transactions.</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">type</span><span> </span><span id="Origins"><span class="annot"><a href="Pigy.Chain.Types.html#Origins"><span class="hs-identifier hs-var">Origins</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">M.Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">TxIn</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier hs-type">MaryAddress</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | Map of transactions that to be processed.</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">type</span><span> </span><span id="Pendings"><span class="annot"><a href="Pigy.Chain.Types.html#Pendings"><span class="hs-identifier hs-var">Pendings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">M.Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">TxIn</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier hs-type">MaryAddress</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Value</span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | History of transaction origins and pending transactions.</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">type</span><span> </span><span id="History"><span class="annot"><a href="Pigy.Chain.Types.html#History"><span class="hs-identifier hs-var">History</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">SlotNo</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Chain.Types.html#Origins"><span class="hs-identifier hs-type">Origins</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Pendings"><span class="hs-identifier hs-type">Pendings</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | The state of the chain.</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="ChainState"><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-var">ChainState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>  </span><span id="ChainState"><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-var">ChainState</span></a></span></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">{</span><span>
+</span><span id="line-70"></span><span>    </span><span id="context"><span class="annot"><span class="annottext">ChainState -&gt; Context
+</span><a href="Pigy.Chain.Types.html#context"><span class="hs-identifier hs-var hs-var">context</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Types.html#Context"><span class="hs-identifier hs-type">Context</span></a></span><span>        </span><span class="hs-comment">-- ^ The service context.</span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="active"><span class="annot"><span class="annottext">ChainState -&gt; Bool
+</span><a href="Pigy.Chain.Types.html#active"><span class="hs-identifier hs-var hs-var">active</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>           </span><span class="hs-comment">-- ^ Whether the service can mint.</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="current"><span class="annot"><span class="annottext">ChainState -&gt; SlotNo
+</span><a href="Pigy.Chain.Types.html#current"><span class="hs-identifier hs-var hs-var">current</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SlotNo</span></span><span>         </span><span class="hs-comment">-- ^ The curent slot number.</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="origins"><span class="annot"><span class="annottext">ChainState -&gt; Origins
+</span><a href="Pigy.Chain.Types.html#origins"><span class="hs-identifier hs-var hs-var">origins</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Origins"><span class="hs-identifier hs-type">Origins</span></a></span><span>        </span><span class="hs-comment">-- ^ The originating addresses of UTxOs being tracked.</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="pendings"><span class="annot"><span class="annottext">ChainState -&gt; Pendings
+</span><a href="Pigy.Chain.Types.html#pendings"><span class="hs-identifier hs-var hs-var">pendings</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Pendings"><span class="hs-identifier hs-type">Pendings</span></a></span><span>       </span><span class="hs-comment">-- ^ Queued minting operations.</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="history"><span class="annot"><span class="annottext">ChainState -&gt; History
+</span><a href="Pigy.Chain.Types.html#history"><span class="hs-identifier hs-var hs-var">history</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#History"><span class="hs-identifier hs-type">History</span></a></span><span>        </span><span class="hs-comment">-- ^ The transaction history, for rollbacks.</span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scriptAddress"><span class="annot"><span class="annottext">ChainState -&gt; MaryAddress
+</span><a href="Pigy.Chain.Types.html#scriptAddress"><span class="hs-identifier hs-var hs-var">scriptAddress</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryAddress"><span class="hs-identifier hs-type">MaryAddress</span></a></span><span>    </span><span class="hs-comment">-- ^ The minting script address.</span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="script"><span class="annot"><span class="annottext">ChainState -&gt; MaryScript
+</span><a href="Pigy.Chain.Types.html#script"><span class="hs-identifier hs-var hs-var">script</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#MaryScript"><span class="hs-identifier hs-type">MaryScript</span></a></span><span>     </span><span class="hs-comment">-- ^ The minting script.</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="scriptHash"><span class="annot"><span class="annottext">ChainState -&gt; ScriptHash
+</span><a href="Pigy.Chain.Types.html#scriptHash"><span class="hs-identifier hs-var hs-var">scriptHash</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ScriptHash</span></span><span>     </span><span class="hs-comment">-- ^ The hash of the miting script.</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="checker"><span class="annot"><span class="annottext">ChainState -&gt; Value -&gt; Bool
+</span><a href="Pigy.Chain.Types.html#checker"><span class="hs-identifier hs-var hs-var">checker</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Value</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>  </span><span class="hs-comment">-- ^ Function to check validity.</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Default</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621679219519"><span class="annot"><span class="annottext">def :: ChainState
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">def</span></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><span class="annottext">ChainState :: Context
+-&gt; Bool
+-&gt; SlotNo
+-&gt; Origins
+-&gt; Pendings
+-&gt; History
+-&gt; MaryAddress
+-&gt; MaryScript
+-&gt; ScriptHash
+-&gt; (Value -&gt; Bool)
+-&gt; ChainState
+</span><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-special">{</span><span>
+</span><span id="line-86"></span><span>      </span><span class="annot"><span class="annottext">context :: Context
+</span><a href="Pigy.Chain.Types.html#context"><span class="hs-identifier hs-var">context</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Context
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">active :: Bool
+</span><a href="Pigy.Chain.Types.html#active"><span class="hs-identifier hs-var">active</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">current :: SlotNo
+</span><a href="Pigy.Chain.Types.html#current"><span class="hs-identifier hs-var">current</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; SlotNo
+</span><span class="hs-identifier hs-var">SlotNo</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">origins :: Origins
+</span><a href="Pigy.Chain.Types.html#origins"><span class="hs-identifier hs-var">origins</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Origins
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">M.empty</span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">pendings :: Pendings
+</span><a href="Pigy.Chain.Types.html#pendings"><span class="hs-identifier hs-var">pendings</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pendings
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">M.empty</span></span><span>
+</span><span id="line-91"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">history :: History
+</span><a href="Pigy.Chain.Types.html#history"><span class="hs-identifier hs-var">history</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word64 -&gt; SlotNo
+</span><span class="hs-identifier hs-var">SlotNo</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Origins
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">M.empty</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pendings
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">M.empty</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-92"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scriptAddress :: MaryAddress
+</span><a href="Pigy.Chain.Types.html#scriptAddress"><span class="hs-identifier hs-var">scriptAddress</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaryAddress
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-93"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">script :: MaryScript
+</span><a href="Pigy.Chain.Types.html#script"><span class="hs-identifier hs-var">script</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MaryScript
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-94"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">scriptHash :: ScriptHash
+</span><a href="Pigy.Chain.Types.html#scriptHash"><span class="hs-identifier hs-var">scriptHash</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScriptHash
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">checker :: Value -&gt; Bool
+</span><a href="Pigy.Chain.Types.html#checker"><span class="hs-identifier hs-var">checker</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Value -&gt; Bool
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- | Lens for the active state.</span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Pigy.Chain.Types.html#activeLens"><span class="hs-identifier hs-type">activeLens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Lens'</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-101"></span><span id="activeLens"><span class="annot"><span class="annottext">activeLens :: (Bool -&gt; f Bool) -&gt; ChainState -&gt; f ChainState
+</span><a href="Pigy.Chain.Types.html#activeLens"><span class="hs-identifier hs-var hs-var">activeLens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ChainState -&gt; Bool)
+-&gt; (ChainState -&gt; Bool -&gt; ChainState)
+-&gt; Lens ChainState ChainState Bool Bool
+forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
+</span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">ChainState -&gt; Bool
+</span><a href="Pigy.Chain.Types.html#active"><span class="hs-identifier hs-var hs-var">active</span></a></span><span> </span><span class="annot"><span class="annottext">((ChainState -&gt; Bool -&gt; ChainState)
+ -&gt; Lens ChainState ChainState Bool Bool)
+-&gt; (ChainState -&gt; Bool -&gt; ChainState)
+-&gt; Lens ChainState ChainState Bool Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679219515"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219515"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679219514"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679219514"><span class="hs-identifier hs-var">active'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219515"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">active :: Bool
+</span><a href="Pigy.Chain.Types.html#active"><span class="hs-identifier hs-var">active</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679219514"><span class="hs-identifier hs-var">active'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- | Lens for the current slot number.</span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Pigy.Chain.Types.html#currentLens"><span class="hs-identifier hs-type">currentLens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Lens'</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SlotNo</span></span><span>
+</span><span id="line-106"></span><span id="currentLens"><span class="annot"><span class="annottext">currentLens :: (SlotNo -&gt; f SlotNo) -&gt; ChainState -&gt; f ChainState
+</span><a href="Pigy.Chain.Types.html#currentLens"><span class="hs-identifier hs-var hs-var">currentLens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ChainState -&gt; SlotNo)
+-&gt; (ChainState -&gt; SlotNo -&gt; ChainState)
+-&gt; Lens ChainState ChainState SlotNo SlotNo
+forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
+</span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">ChainState -&gt; SlotNo
+</span><a href="Pigy.Chain.Types.html#current"><span class="hs-identifier hs-var hs-var">current</span></a></span><span> </span><span class="annot"><span class="annottext">((ChainState -&gt; SlotNo -&gt; ChainState)
+ -&gt; Lens ChainState ChainState SlotNo SlotNo)
+-&gt; (ChainState -&gt; SlotNo -&gt; ChainState)
+-&gt; Lens ChainState ChainState SlotNo SlotNo
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679219513"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219513"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679219512"><span class="annot"><span class="annottext">SlotNo
+</span><a href="#local-6989586621679219512"><span class="hs-identifier hs-var">current'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219513"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">current :: SlotNo
+</span><a href="Pigy.Chain.Types.html#current"><span class="hs-identifier hs-var">current</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SlotNo
+</span><a href="#local-6989586621679219512"><span class="hs-identifier hs-var">current'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Lens for the originating addresses being tracked.</span><span>
+</span><span id="line-110"></span><span class="annot"><a href="Pigy.Chain.Types.html#originsLens"><span class="hs-identifier hs-type">originsLens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Lens'</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Origins"><span class="hs-identifier hs-type">Origins</span></a></span><span>
+</span><span id="line-111"></span><span id="originsLens"><span class="annot"><span class="annottext">originsLens :: (Origins -&gt; f Origins) -&gt; ChainState -&gt; f ChainState
+</span><a href="Pigy.Chain.Types.html#originsLens"><span class="hs-identifier hs-var hs-var">originsLens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ChainState -&gt; Origins)
+-&gt; (ChainState -&gt; Origins -&gt; ChainState)
+-&gt; Lens ChainState ChainState Origins Origins
+forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
+</span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">ChainState -&gt; Origins
+</span><a href="Pigy.Chain.Types.html#origins"><span class="hs-identifier hs-var hs-var">origins</span></a></span><span> </span><span class="annot"><span class="annottext">((ChainState -&gt; Origins -&gt; ChainState)
+ -&gt; Lens ChainState ChainState Origins Origins)
+-&gt; (ChainState -&gt; Origins -&gt; ChainState)
+-&gt; Lens ChainState ChainState Origins Origins
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679219511"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219511"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679219510"><span class="annot"><span class="annottext">Origins
+</span><a href="#local-6989586621679219510"><span class="hs-identifier hs-var">origins'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219511"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">origins :: Origins
+</span><a href="Pigy.Chain.Types.html#origins"><span class="hs-identifier hs-var">origins</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Origins
+</span><a href="#local-6989586621679219510"><span class="hs-identifier hs-var">origins'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- | Lens for the queued mintings.</span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Pigy.Chain.Types.html#pendingsLens"><span class="hs-identifier hs-type">pendingsLens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Lens'</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Pendings"><span class="hs-identifier hs-type">Pendings</span></a></span><span>
+</span><span id="line-116"></span><span id="pendingsLens"><span class="annot"><span class="annottext">pendingsLens :: (Pendings -&gt; f Pendings) -&gt; ChainState -&gt; f ChainState
+</span><a href="Pigy.Chain.Types.html#pendingsLens"><span class="hs-identifier hs-var hs-var">pendingsLens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ChainState -&gt; Pendings)
+-&gt; (ChainState -&gt; Pendings -&gt; ChainState)
+-&gt; Lens ChainState ChainState Pendings Pendings
+forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
+</span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">ChainState -&gt; Pendings
+</span><a href="Pigy.Chain.Types.html#pendings"><span class="hs-identifier hs-var hs-var">pendings</span></a></span><span> </span><span class="annot"><span class="annottext">((ChainState -&gt; Pendings -&gt; ChainState)
+ -&gt; Lens ChainState ChainState Pendings Pendings)
+-&gt; (ChainState -&gt; Pendings -&gt; ChainState)
+-&gt; Lens ChainState ChainState Pendings Pendings
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679219509"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219509"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679219508"><span class="annot"><span class="annottext">Pendings
+</span><a href="#local-6989586621679219508"><span class="hs-identifier hs-var">pendings'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219509"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">pendings :: Pendings
+</span><a href="Pigy.Chain.Types.html#pendings"><span class="hs-identifier hs-var">pendings</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pendings
+</span><a href="#local-6989586621679219508"><span class="hs-identifier hs-var">pendings'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- | Lens for the tracking history.</span><span>
+</span><span id="line-120"></span><span class="annot"><a href="Pigy.Chain.Types.html#historyLens"><span class="hs-identifier hs-type">historyLens</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Lens'</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#History"><span class="hs-identifier hs-type">History</span></a></span><span>
+</span><span id="line-121"></span><span id="historyLens"><span class="annot"><span class="annottext">historyLens :: (History -&gt; f History) -&gt; ChainState -&gt; f ChainState
+</span><a href="Pigy.Chain.Types.html#historyLens"><span class="hs-identifier hs-var hs-var">historyLens</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ChainState -&gt; History)
+-&gt; (ChainState -&gt; History -&gt; ChainState)
+-&gt; Lens ChainState ChainState History History
+forall s a b t. (s -&gt; a) -&gt; (s -&gt; b -&gt; t) -&gt; Lens s t a b
+</span><span class="hs-identifier hs-var">lens</span></span><span> </span><span class="annot"><span class="annottext">ChainState -&gt; History
+</span><a href="Pigy.Chain.Types.html#history"><span class="hs-identifier hs-var hs-var">history</span></a></span><span> </span><span class="annot"><span class="annottext">((ChainState -&gt; History -&gt; ChainState)
+ -&gt; Lens ChainState ChainState History History)
+-&gt; (ChainState -&gt; History -&gt; ChainState)
+-&gt; Lens ChainState ChainState History History
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679219507"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219507"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679219506"><span class="annot"><span class="annottext">History
+</span><a href="#local-6989586621679219506"><span class="hs-identifier hs-var">history'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219507"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">history :: History
+</span><a href="Pigy.Chain.Types.html#history"><span class="hs-identifier hs-var">history</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">History
+</span><a href="#local-6989586621679219506"><span class="hs-identifier hs-var">history'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- | The monad for the chain state.</span><span>
+</span><span id="line-125"></span><span class="hs-keyword">type</span><span> </span><span id="Chain"><span class="annot"><a href="Pigy.Chain.Types.html#Chain"><span class="hs-identifier hs-var">Chain</span></a></span></span><span> </span><span id="local-6989586621679219505"><span class="annot"><a href="#local-6989586621679219505"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219505"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Modify the chain state.</span><span>
+</span><span id="line-129"></span><span id="local-6989586621679219504"><span class="annot"><a href="Pigy.Chain.Types.html#withChainState"><span class="hs-identifier hs-type">withChainState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#ChainState"><span class="hs-identifier hs-type">ChainState</span></a></span><span> </span><span class="hs-comment">-- ^ Reference to the chain state.</span><span>
+</span><span id="line-130"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Pigy.Chain.Types.html#Chain"><span class="hs-identifier hs-type">Chain</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679219504"><span class="hs-identifier hs-type">a</span></a></span><span>          </span><span class="hs-comment">-- ^ Action for modifying the chain state.</span><span>
+</span><span id="line-131"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679219504"><span class="hs-identifier hs-type">a</span></a></span><span>             </span><span class="hs-comment">-- ^ Action returning the result of the modification.</span></span><span>
+</span><span id="line-132"></span><span id="withChainState"><span class="annot"><span class="annottext">withChainState :: IORef ChainState -&gt; Chain a -&gt; IO a
+</span><a href="Pigy.Chain.Types.html#withChainState"><span class="hs-identifier hs-var hs-var">withChainState</span></a></span></span><span> </span><span id="local-6989586621679219503"><span class="annot"><span class="annottext">IORef ChainState
+</span><a href="#local-6989586621679219503"><span class="hs-identifier hs-var">ref</span></a></span></span><span> </span><span id="local-6989586621679219502"><span class="annot"><span class="annottext">Chain a
+</span><a href="#local-6989586621679219502"><span class="hs-identifier hs-var">transition</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-134"></span><span>    </span><span id="local-6989586621679219501"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219501"><span class="hs-identifier hs-var">initial</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IORef ChainState -&gt; IO ChainState
+forall a. IORef a -&gt; IO a
+</span><span class="hs-identifier hs-var">readIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef ChainState
+</span><a href="#local-6989586621679219503"><span class="hs-identifier hs-var">ref</span></a></span><span>
+</span><span id="line-135"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679219500"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679219500"><span class="hs-identifier hs-var">result</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219499"><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219499"><span class="hs-identifier hs-var">final</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Chain a -&gt; ChainState -&gt; IO (a, ChainState)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var hs-var">runStateT</span></span><span> </span><span class="annot"><span class="annottext">Chain a
+</span><a href="#local-6989586621679219502"><span class="hs-identifier hs-var">transition</span></a></span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219501"><span class="hs-identifier hs-var">initial</span></a></span><span>
+</span><span id="line-136"></span><span>    </span><span class="annot"><span class="annottext">IORef ChainState -&gt; ChainState -&gt; IO ()
+forall a. IORef a -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">writeIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef ChainState
+</span><a href="#local-6989586621679219503"><span class="hs-identifier hs-var">ref</span></a></span><span> </span><span class="annot"><span class="annottext">ChainState
+</span><a href="#local-6989586621679219499"><span class="hs-identifier hs-var">final</span></a></span><span>
+</span><span id="line-137"></span><span>    </span><span class="annot"><span class="annottext">a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679219500"><span class="hs-identifier hs-var">result</span></a></span><span>
+</span><span id="line-138"></span></pre></body></html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Module      :  $Headers</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  (c) 2021 Brian W Bush</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  MIT</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  Brian W Bush &lt;code@functionally.io&gt;</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  Experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  Portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- | Command-line for image-token service.</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Main</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-16"></span><span class="annot"><span class="hs-comment">-- * Service</span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><a href="Main.html#main"><span class="hs-identifier">main</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Mantis.Types</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">runMantisToIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Chain.html"><span class="hs-identifier">Pigy.Chain</span></a></span><span>         </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Chain.html#runChain"><span class="hs-identifier">runChain</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Pigy.Types.html"><span class="hs-identifier">Pigy.Types</span></a></span><span>         </span><span class="hs-special">(</span><span class="annot"><a href="Pigy.Types.html#makeContext"><span class="hs-identifier">makeContext</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Pigy.Types.html#readConfiguration"><span class="hs-identifier">readConfiguration</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">getArgs</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Exit</span></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">exitFailure</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">hPutStrLn</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">stderr</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Run the service.</span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Main.html#main"><span class="hs-identifier hs-type">main</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span id="main"><span class="annot"><span class="annottext">main :: IO ()
+</span><a href="Main.html#main"><span class="hs-identifier hs-var hs-var">main</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-keyword">do</span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">[</span><span id="local-6989586621679220230"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679220230"><span class="hs-identifier hs-var">filename</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [String]
+</span><span class="hs-identifier hs-var">getArgs</span></span><span>
+</span><span id="line-34"></span><span>    </span><span id="local-6989586621679220229"><span class="annot"><span class="annottext">Either String ()
+</span><a href="#local-6989586621679220229"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-35"></span><span>      </span><span class="annot"><span class="annottext">MantisM IO () -&gt; IO (Either String ())
+forall a. MantisM IO a -&gt; IO (Either String a)
+</span><span class="hs-identifier hs-var">runMantisToIO</span></span><span>
+</span><span id="line-36"></span><span>        </span><span class="annot"><span class="annottext">(MantisM IO () -&gt; IO (Either String ()))
+-&gt; MantisM IO () -&gt; IO (Either String ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-37"></span><span>            </span><span id="local-6989586621679220228"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679220228"><span class="hs-identifier hs-var">configuration</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; MantisM IO Configuration
+forall (m :: * -&gt; *).
+MonadIO m =&gt;
+String -&gt; MantisM m Configuration
+</span><a href="Pigy.Types.html#readConfiguration"><span class="hs-identifier hs-var">readConfiguration</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679220230"><span class="hs-identifier hs-var">filename</span></a></span><span>
+</span><span id="line-38"></span><span>            </span><span id="local-6989586621679220227"><span class="annot"><span class="annottext">Context
+</span><a href="#local-6989586621679220227"><span class="hs-identifier hs-var">context</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Configuration -&gt; MantisM IO Context
+forall (m :: * -&gt; *).
+(MonadFail m, MonadIO m) =&gt;
+Configuration -&gt; MantisM m Context
+</span><a href="Pigy.Types.html#makeContext"><span class="hs-identifier hs-var">makeContext</span></a></span><span> </span><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679220228"><span class="hs-identifier hs-var">configuration</span></a></span><span>
+</span><span id="line-39"></span><span>            </span><span class="annot"><span class="annottext">Context -&gt; MantisM IO ()
+forall (m :: * -&gt; *).
+(MonadFail m, MonadIO m) =&gt;
+Context -&gt; MantisM m ()
+</span><a href="Pigy.Chain.html#runChain"><span class="hs-identifier hs-var">runChain</span></a></span><span> </span><span class="annot"><span class="annottext">Context
+</span><a href="#local-6989586621679220227"><span class="hs-identifier hs-var">context</span></a></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either String ()
+</span><a href="#local-6989586621679220229"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-41"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; IO ()
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679220226"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679220226"><span class="hs-identifier hs-var">e</span></a></span></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Handle -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">hPutStrLn</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><span class="hs-identifier hs-var">stderr</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679220226"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="annot"><span class="annottext">IO () -&gt; IO () -&gt; IO ()
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO ()
+forall a. IO a
+</span><span class="hs-identifier hs-var">exitFailure</span></span><span>
+</span><span id="line-43"></span></pre></body></html>
