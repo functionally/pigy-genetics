@@ -46,6 +46,7 @@ gid :: Word8
 gid = 1
 
 
+-- | The genotype.
 data Genotype =
   Genotype
   {

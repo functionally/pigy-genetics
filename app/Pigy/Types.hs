@@ -50,7 +50,7 @@ data Configuration =
   Configuration
   {
     socketPath  :: FilePath     -- ^ The path for the Cardano node's socket.
-  , magic       :: Maybe Word32 -- ^ The magic number for the Cardano network, unless `mainnet`.
+  , magic       :: Maybe Word32 -- ^ The magic number for the Cardano network, unless using mainnet.
   , epochSlots  :: Word64       -- ^ The number of slots per epoch.
   , policyId    :: String       -- ^ The policy ID of the payment token.
   , assetName   :: String       -- ^ The asset name of the payment token.
