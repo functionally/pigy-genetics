@@ -1,4 +1,19 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | Command-line for image-token service.
+--
+-----------------------------------------------------------------------------
+
 module Main (
+-- * Service
   main
 ) where
 
@@ -11,6 +26,7 @@ import System.Exit        (exitFailure)
 import System.IO          (hPutStrLn, stderr)
 
 
+-- | Run the service.
 main :: IO ()
 main =
   do

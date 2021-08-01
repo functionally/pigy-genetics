@@ -1,8 +1,23 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | Test utilities for pig images.
+--
+-----------------------------------------------------------------------------
+
 
 {-# LANGUAGE FlexibleContexts #-}
 
 
 module Pigy.Image.Test (
+-- * Testing
   test
 , testCreate
 , testCrossover
@@ -19,19 +34,21 @@ import System.Random.Internal (uniformM)
 import System.Random.Stateful (StatefulGen, newIOGenM)
 
 
+-- | Run all tests.
 test :: IO ()
 test =
   do
     g <- newIOGenM =<< getStdGen
---  testCreate g
---  testCrossover g
+    testCreate g
+    testCrossover g
     testVersion g
---  testTree g
+    testTree g
 
 
+-- | Test image creation.
 testCreate :: StatefulGen g IO
-           => g
-           -> IO ()
+           => g     -- ^ The random-number generator.
+           -> IO () -- ^ Action for running the test.
 testCreate g =
   do
     genotype <- uniformM g
@@ -51,9 +68,10 @@ testCreate g =
     putStrLn $ "Encoding okay: " ++ show (genotype' == genotype'')
 
 
+-- | Test crossover.
 testCrossover :: StatefulGen g IO
-              => g
-              -> IO ()
+              => g     -- ^ The random-number generator.
+              -> IO () -- ^ Action for running the test.
 testCrossover g =
   do
     parent  <- uniformM g
@@ -73,9 +91,10 @@ testCrossover g =
       $ toPhenotype offspring
 
 
+-- | Test versioning.
 testVersion :: StatefulGen g IO
-            => g
-            -> IO ()
+            => g     -- ^ The random-number generator.
+            -> IO () -- ^ Action for running the test.
 testVersion g =
   do
     genotype <- GenotypeV0 <$> uniformM g
@@ -112,9 +131,10 @@ testVersion g =
       $ toPhenotype offspring
 
 
+-- | Test family trees.
 testTree :: StatefulGen g IO
-         => g
-         -> IO ()
+         => g     -- ^ The random-number generator.
+         -> IO () -- ^ Action for running the test.
 testTree g =
   do
     putStrLn "digraph pigy {"

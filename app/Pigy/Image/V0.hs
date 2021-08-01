@@ -1,3 +1,17 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | Version 0 of the pig-image genotype and phenotype.
+--
+-----------------------------------------------------------------------------
+
 
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -5,7 +19,9 @@
 
 
 module Pigy.Image.V0 (
+-- * Versioning
   gid
+-- * Genetics
 , Genotype(..)
 , Phenotype(..)
 , crossover
@@ -15,8 +31,8 @@ module Pigy.Image.V0 (
 import Codec.Picture            (PixelRGBA8(..))
 import Control.Monad            (replicateM)
 import Data.Binary              (Binary(..))
-import Data.Colour.SRGB         (RGB(..))
 import Data.Colour.RGBSpace.HSL (hsl)
+import Data.Colour.SRGB         (RGB(..))
 import Data.Fixed               (mod')
 import Data.Word                (Word8)
 import Pigy.Image.Types         (Phenable(..), Phenotype(..), Upgradeable(..))
@@ -27,35 +43,37 @@ import System.Random.Stateful   (StatefulGen)
 import qualified Pigy.Image.V1 as V1 (Genotype(..))
 
 
+-- | The version of the genotype.
 gid :: Word8
 gid = 0
 
 
+-- | The genotype.
 data Genotype =
   Genotype
   {
-    ar     :: Float
-  , headx  :: Float
-  , heady  :: Float
-  , eyex   :: Float
-  , eyey   :: Float
-  , nosex  :: Float
-  , nosey  :: Float
-  , earx   :: Float
-  , eary   :: Float
-  , torso  :: Float
-  , skinh  :: Float
-  , eyeh   :: Float
-  , eyes   :: Float
-  , eyel   :: Float
-  , pupilh :: Float
-  , pupils :: Float
-  , pupill :: Float
-  , noseh  :: Float
-  , noses  :: Float
-  , nosel  :: Float
-  , eyea   :: Float
-  , eyef   :: Float
+    ar     :: Float -- ^ Aspect ratio.
+  , headx  :: Float -- ^ Head width.
+  , heady  :: Float -- ^ Head height.
+  , eyex   :: Float -- ^ Eye width.
+  , eyey   :: Float -- ^ Eye height.
+  , nosex  :: Float -- ^ Nose width.
+  , nosey  :: Float -- ^ Nose height.
+  , earx   :: Float -- ^ Ear width.
+  , eary   :: Float -- ^ Ear height.
+  , torso  :: Float -- ^ Torso size.
+  , skinh  :: Float -- ^ Skin hue.
+  , eyeh   :: Float -- ^ Eye hue.
+  , eyes   :: Float -- ^ Eye saturation.
+  , eyel   :: Float -- ^ Eye luminosity.
+  , pupilh :: Float -- ^ Pupil hue.
+  , pupils :: Float -- ^ Pupil saturation.
+  , pupill :: Float -- ^ Pupil luminosity.
+  , noseh  :: Float -- ^ Nose hue.
+  , noses  :: Float -- ^ Nose saturation.
+  , nosel  :: Float -- ^ Nose luminosity.
+  , eyea   :: Float -- ^ Pupil radial angle.
+  , eyef   :: Float -- ^ Pupil radial position.
   }
     deriving (Eq, Ord, Read, Show)
 
@@ -161,11 +179,12 @@ instance Uniform Genotype where
       return Genotype{..}
 
 
+-- | Perform crossover between genotypes.
 crossover :: MonadFail m
           => StatefulGen g m
-          => g
-          -> [Genotype]
-          -> m Genotype
+          => g          -- ^ The random-number generator.
+          -> [Genotype] -- ^ The genotypes to be crossed.
+          -> m Genotype -- ^ The action to cross the genotypes.
 crossover g genotypes =
   do
     let

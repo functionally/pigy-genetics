@@ -1,5 +1,20 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | IPFS pinning for pig images.
+--
+-----------------------------------------------------------------------------
+
 
 module Pigy.Ipfs (
+-- * IPFS
   pinImage
 ) where
 
@@ -13,12 +28,13 @@ import System.FilePath.Posix     ((</>), (<.>))
 import System.Exit               (ExitCode(..))
 
 
+-- | Pin an image to IPFS.
 pinImage :: MonadFail m
          => MonadIO m
-         => FilePath
-         -> FilePath
-         -> Genotype
-         -> MantisM m (Chromosome, String)
+         => FilePath                       -- ^ The IPFS shell script.
+         -> FilePath                       -- ^ The folder for images.
+         -> Genotype                       -- ^ The genotype of the image.
+         -> MantisM m (Chromosome, String) -- ^ Action for pinning the image and returning its chromosome and IPFS CID.
 pinImage script folder genotype =
   foistMantisEitherIO
     $ do

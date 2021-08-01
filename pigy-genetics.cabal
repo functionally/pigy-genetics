@@ -2,7 +2,7 @@ cabal-version: >= 1.10
 
 name              : pigy-genetics
 description       : Service for PIGY token genetics.
-version           : 0.1.4.0
+version           : 0.1.4.1
 license           : MIT
 license-file      : LICENSE
 author            : Brian W Bush
@@ -13,7 +13,10 @@ build-type        : Simple
 executable pigy-genetics
   main-is         : Main.hs
   other-modules   : Pigy.Chain
+                    Pigy.Chain.Mint
+                    Pigy.Chain.Types
                     Pigy.Image
+                    Pigy.Image.Drawing
                     Pigy.Image.Test
                     Pigy.Image.Types
                     Pigy.Image.V0

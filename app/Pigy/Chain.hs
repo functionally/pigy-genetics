@@ -1,57 +1,45 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | Monitor and act on the blockchain.
+--
+-----------------------------------------------------------------------------
 
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE OverloadedStrings  #-}
+
 {-# LANGUAGE RecordWildCards    #-}
-{-# LANGUAGE TypeFamilies       #-}
 
 
 module Pigy.Chain (
+-- * Running
   runChain
 ) where
 
 
-import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), Quantity(..), ScriptHash, ScriptInEra(..), ShelleyWitnessSigningKey(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
-import Control.Lens                                      (Lens', (.~), (%~), lens)
-import Control.Monad                                     (unless, when)
-import Control.Monad.Error.Class                         (throwError)
-import Control.Monad.IO.Class                            (MonadIO, liftIO)
-import Control.Monad.State.Strict                        (MonadState(..), StateT(..), modify)
-import Data.Default                                      (Default(..))
-import Data.IORef                                        (IORef, newIORef, readIORef, writeIORef)
-import Data.Maybe                                        (mapMaybe)
-import Mantis.Chain                                      (watchTransactions)
-import Mantis.Query                                      (submitTransaction)
-import Mantis.Script                                     (mintingScript)
-import Mantis.Types                                      (MantisM, foistMantisEither, printMantis, runMantisToIO)
-import Mantis.Transaction                                (includeFee, makeTransaction, printValueIO, supportedMultiAsset)
-import Mantis.Wallet                                     (showAddressMary, stakeReferenceMary)
-import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
-import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
-import Pigy.Ipfs                                         (pinImage)
-import Pigy.Types                                        (Context(..), KeyedAddress(..), Mode(..))
+import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, selectAsset)
+import Control.Lens               ((.~), (%~))
+import Control.Monad              (unless, when)
+import Control.Monad.IO.Class     (MonadIO, liftIO)
+import Control.Monad.State.Strict (MonadState(..), modify)
+import Data.Default               (Default(..))
+import Data.IORef                 (newIORef)
+import Data.Maybe                 (mapMaybe)
+import Mantis.Chain               (watchTransactions)
+import Mantis.Script              (mintingScript)
+import Mantis.Types               (MantisM, runMantisToIO)
+import Mantis.Transaction         (printValueIO)
+import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
+import Pigy.Chain.Mint            (checkValue, mint)
+import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, withChainState)
+import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
-import qualified Data.ByteString.Char8 as BS (ByteString, drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M  (Map, delete, difference, empty, fromList, fromListWith, insert, lookup, member, toList)
-import qualified Data.Text             as T  (pack)
-
-
-type MaryAddress = AddressInEra MaryEra
-
-
-type MaryScript = ScriptInEra MaryEra
-
-
--- | Map of origins of transactions.
-type Origins = M.Map TxIn MaryAddress
-
-
--- | Map of transactions that to be processed.
-type Pendings = M.Map TxIn ([MaryAddress], Value)
-
-
--- | History of transaction origins and pending transactions.
-type History = [(SlotNo, (Origins, Pendings))]
+import qualified Data.Map.Strict as M  (delete, difference, fromListWith, insert, lookup, member, toList)
 
 
 -- | The Ouroboros security parameter.
@@ -59,21 +47,24 @@ kSecurity :: Int
 kSecurity = 2160
 
 
-record :: SlotNo
-       -> (Origins, Pendings)
-       -> History
-       -> History
+-- | Record history.
+record :: SlotNo              -- ^ The curent slot number.
+       -> (Origins, Pendings) -- ^ The tracked transactions and queued mintings.
+       -> History             -- ^ The original history.
+       -> History             -- ^ The augmented history.
 record slot sourcePending = take kSecurity . ((slot, sourcePending) :)
 
 
-rollback :: SlotNo
-         -> History
-         -> History
+-- | Roll back history.
+rollback :: SlotNo  -- ^ The slot number to revert to.
+         -> History -- ^ The original history.
+         -> History -- ^ The rolled-back history.
 rollback slot = dropWhile $ (/= slot) . fst
 
 
-toSlotNo :: ChainPoint
-         -> SlotNo
+-- | Extract the slot number from the chain point.
+toSlotNo :: ChainPoint -- ^ The chain point.
+         -> SlotNo     -- ^ The slot number.
 toSlotNo point =
   -- FIXME: Find a less fragile way to extract the slot number at a chain point.
   case show point of
@@ -81,73 +72,8 @@ toSlotNo point =
     text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
 
 
-data ChainState =
-  ChainState
-  {
-    context       :: Context
-  , active        :: Bool
-  , current       :: SlotNo
-  , origins       :: Origins
-  , pendings      :: Pendings
-  , history       :: History
-  , scriptAddress :: MaryAddress
-  , script        :: MaryScript
-  , scriptHash    :: ScriptHash
-  , checker       :: Value -> Bool
-  }
-
-instance Default ChainState where
-  def =
-    ChainState
-    {
-      context       = undefined
-    , active        = False
-    , current       = SlotNo 0
-    , origins       = M.empty
-    , pendings      = M.empty
-    , history       = [(SlotNo 0, (M.empty, M.empty))]
-    , scriptAddress = undefined
-    , script        = undefined
-    , scriptHash    = undefined
-    , checker       = undefined
-    }
-
-
-activeLens :: Lens' ChainState Bool
-activeLens = lens active $ \x active' -> x {active = active'}
-
-
-currentLens :: Lens' ChainState SlotNo
-currentLens = lens current $ \x current' -> x {current = current'}
-
-
-originsLens :: Lens' ChainState Origins
-originsLens = lens origins $ \x origins' -> x {origins = origins'}
-
-
-pendingsLens :: Lens' ChainState Pendings
-pendingsLens = lens pendings $ \x pendings' -> x {pendings = pendings'}
-
-
-historyLens :: Lens' ChainState History
-historyLens = lens history $ \x history' -> x {history = history'}
-
-
-type Chain a = StateT ChainState IO a
-
-
-withChainState :: IORef ChainState
-               -> Chain a
-               -> IO a
-withChainState ref transition =
-  do
-    initial <- readIORef ref
-    (result, final) <- runStateT transition initial
-    writeIORef ref final
-    return result
-
-
-makeActive :: Chain ()
+-- | Allow minting.
+makeActive :: Chain () -- ^ Action to modify the chain state.
 makeActive =
   do
     ChainState{..} <- get
@@ -161,8 +87,9 @@ makeActive =
           $ activeLens .~ True
 
 
-recordBlock :: SlotNo
-            -> Chain ()
+-- | Record a new block.
+recordBlock :: SlotNo   -- ^ The slot number.
+            -> Chain () -- ^ Action to modify the chain state.
 recordBlock slot =
   do
     ChainState{..} <- get
@@ -176,8 +103,9 @@ recordBlock slot =
       . (historyLens %~ record current (origins, pendings))
 
 
-recordRollback :: SlotNo
-               -> Chain ()
+-- | Roll back the chain state.
+recordRollback :: SlotNo   -- ^ The slot number to roll back to.
+               -> Chain () -- ^ The action to modify the chain state.
 recordRollback slot =
   do
     ChainState{..} <- get
@@ -195,9 +123,10 @@ recordRollback slot =
       . (historyLens  .~ history' )
 
 
-recordInput :: SlotNo
-            -> TxIn
-            -> Chain ()
+-- | Record the input to a transaction.
+recordInput :: SlotNo   -- ^ The slot number.
+            -> TxIn     -- ^ The spent UTxO.
+            -> Chain () -- ^ The action to modify the chain state.
 recordInput slot txIn =
   do
     ChainState{..} <- get
@@ -216,11 +145,12 @@ recordInput slot txIn =
           . (pendingsLens %~ M.delete txIn)
 
 
-recordOutput :: [TxIn]
-             -> TxIn
-             -> MaryAddress
-             -> Value
-             -> Chain ()
+-- | Record the output of a transaction.
+recordOutput :: [TxIn]      -- ^ The spend UTxOs.
+             -> TxIn        -- ^ The UTxO.
+             -> MaryAddress -- ^ The destination address.
+             -> Value       -- ^ The total value.
+             -> Chain ()    -- ^ The action to modify the chain state.
 recordOutput inputs output destination value =
   do
     ChainState{..} <- get
@@ -254,7 +184,8 @@ recordOutput inputs output destination value =
                    $ pendingsLens %~ M.insert output (sources, value)
 
 
-createPendingSingle :: Chain ()
+-- | Mint a token from a single transaction.
+createPendingSingle :: Chain () -- ^ The action to modify the chain state.
 createPendingSingle =
   do
     ChainState{..} <- get
@@ -267,7 +198,8 @@ createPendingSingle =
       ]
 
 
-createPendingMultiple :: Chain ()
+-- | Mint a token from multiple transactions.
+createPendingMultiple :: Chain ()-- ^ The action to modify the chain state.
 createPendingMultiple =
   do
     ChainState{..} <- get
@@ -319,9 +251,10 @@ createPendingMultiple =
       ]
 
 
-createToken :: [TxIn]
-            -> (MaryAddress, Value)
-            -> Chain ()
+-- | Mint or burn a token.
+createToken :: [TxIn]               -- ^ The UTxOs to spend.
+            -> (MaryAddress, Value) -- ^ The destination and total value.
+            -> Chain ()             -- ^ The action to modify the chain state.
 createToken inputs (destination, value) =
   do
     ChainState{..} <- get
@@ -373,9 +306,10 @@ createToken inputs (destination, value) =
           Left  e  -> putStrLn $ "  " ++ e
 
 
-printRollback :: (Origins , Origins )
-              -> (Pendings, Pendings)
-              -> Chain ()
+-- | Print diagnostic information for a rollback.
+printRollback :: (Origins , Origins ) -- ^ The prior and posterior tracking of transaction origins.
+              -> (Pendings, Pendings) -- ^ The prior and posterior queues for minting.
+              -> Chain ()             -- ^ The action to modify the chain state.
 printRollback (origins, origins') (pendings, pendings') =
   do
     unless (origins == origins')
@@ -396,9 +330,10 @@ printRollback (origins, origins') (pendings, pendings') =
           $ pendings' `M.difference` pendings
 
 
-printOrigins :: String
-             -> Origins
-             -> IO ()
+-- | Print diagnostic information for transaction origins.
+printOrigins :: String  -- ^ The prefatory message.
+             -> Origins -- ^ The transaction origins.
+             -> IO ()   -- ^ The action to print the information.
 printOrigins message origins' =
   do
     putStrLn $ "    " ++ message
@@ -412,9 +347,10 @@ printOrigins message origins' =
       ]
 
 
-printPendings :: String
-              -> Pendings
-              -> IO ()
+-- | Print diagnostic information for queued mintings.
+printPendings :: String   -- ^ The prefatory message.
+              -> Pendings -- ^ The queued mintings.
+              -> IO ()    -- ^ The action to print the information.
 printPendings message pendings' =
   do
     putStrLn $ "    " ++ message
@@ -428,16 +364,17 @@ printPendings message pendings' =
             |
               source <- sources
             ]
-          printValueIO "      " value
+          printValueIO "        " value
       |
         (output, (sources, value)) <- M.toList pendings'
       ]
 
 
+-- | Run the chain operations for tracking and minting.
 runChain :: MonadFail m
          => MonadIO m
-         => Context
-         -> MantisM m ()
+         => Context      -- ^ The service context.
+         -> MantisM m () -- ^ Action to run the operations.
 runChain context@Context{..} =
   do
     let
@@ -490,134 +427,3 @@ runChain context@Context{..} =
       blockHandler
       inHandler
       outHandler
-
-
-checkValue :: AssetId
-           -> ScriptHash
-           -> Value
-           -> Bool
-checkValue token scriptHash value =
-  let
-    ada = selectLovelace value
-    pigy = selectAsset value token
-    pigs = maximum[1, length $ findPigs scriptHash value]
-    a = 1_500_000
-    b =   500_000
-  in
-    pigy > 0 && ada >= quantityToLovelace (Quantity $ a + b * fromIntegral pigs)
-
-
-pigFilter :: ScriptHash
-          -> AssetId
-          -> Bool
-pigFilter scriptHash (AssetId (PolicyId scriptHash') (AssetName name')) = scriptHash' == scriptHash && BS.isPrefixOf "PIG@" name'
-pigFilter _ _ = False
-
-
-findPigs :: ScriptHash
-         -> Value
-         -> [BS.ByteString]
-findPigs scriptHash =
-  map (\(AssetId _ (AssetName name'), _) -> BS.drop 4 name')
-    . filter (pigFilter scriptHash . fst)
-    . valueToList
-
-
-mint :: MonadFail m
-     => MonadIO m
-     => Context
-     -> [TxIn]
-     -> MaryAddress
-     -> Value
-     -> [String]
-     -> MantisM m ()
-mint Context{..} txIns destination value message =
-  do
-    let
-      KeyedAddress{..} = keyedAddress
-      (script, scriptHash) = mintingScript verificationHash Nothing
-      pigs = findPigs scriptHash value
-    (metadata, minting) <-
-      if length pigs == 1
-        then do
-               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
-               return
-                 (
-                   Nothing
-                 , negateValue $ filterValue (pigFilter scriptHash) value
-                 )
-        else do
-               genotype <-
-                 liftIO
-                   $ if null pigs
-                       then do
-                              putStrLn "  New token."
-                              newGenotype gRandom
-                       else do
-                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
-                              crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
-               (chromosome, cid) <- pinImage ipfsPin images genotype
-               let
-                 name = "PIG@" ++ chromosome
-               return
-                 (
-                   Just
-                     . TxMetadata
-                     $ M.fromList
-                     [
-                       (
-                         721
-                       , TxMetaMap
-                         [
-                           (
-                             TxMetaText . serialiseToRawBytesHexText $ scriptHash
-                           , TxMetaMap
-                             [
-                               (
-                                 TxMetaText $ T.pack name
-                               , TxMetaMap
-                                 [
-                                   (TxMetaText "name"      , TxMetaText . T.pack $ "PIG " ++ chromosome                         )
-                                 , (TxMetaText "image"     , TxMetaText $ "ipfs://" <> T.pack cid                               )
-                                 , (TxMetaText "ticker"    , TxMetaText $ T.pack name                                           )
-                                 , (TxMetaText "parents"   , TxMetaList $ TxMetaText . T.pack . ("PIG@" ++) . BS.unpack <$> pigs)
-                                 , (TxMetaText "url"       , TxMetaText "https://pigy.functionally.live"                        )
-                                 ]
-                               )
-                             ]
-                           )
-                         ]
-                       )
-                     , (
-                         674
-                       , TxMetaMap
-                         [
-                           (
-                             TxMetaText "msg"
-                           , TxMetaList $ TxMetaText . T.pack <$> message
-                           )
-                         ]
-                       )
-                     ]
-                 , valueFromList [(AssetId (PolicyId scriptHash) (AssetName $ BS.pack name),  1)]
-                 )
-    let
-      value' = value <> minting
-    txBody <- includeFee network pparams 1 1 1 0
-      $ makeTransaction
-        txIns
-        [TxOut destination (TxOutValue supportedMultiAsset value')]
-        Nothing
-        metadata
-        Nothing
-        (Just minting)
-    txRaw <- foistMantisEither $ makeTransactionBody txBody
-    let
-      witness = makeShelleyKeyWitness txRaw
-        $ WitnessPaymentExtendedKey signing
-      witness' = makeScriptWitness script
-      txSigned = makeSignedTransaction [witness, witness'] txRaw
-    result <- submitTransaction socket protocol network txSigned
-    case result of
-      SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
-      SubmitFail reason -> throwError  $ "  Failure: " ++ show reason

@@ -1,14 +1,32 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  $Headers
+-- Copyright   :  (c) 2021 Brian W Bush
+-- License     :  MIT
+--
+-- Maintainer  :  Brian W Bush <code@functionally.io>
+-- Stability   :  Experimental
+-- Portability :  Portable
+--
+-- | Types for the pig-image service.
+--
+-----------------------------------------------------------------------------
+
 
 {-# LANGUAGE RecordWildCards #-}
 
 
 module Pigy.Types (
+-- * Configuration
   Configuration(..)
-, Mode(..)
-, KeyInfo(..)
 , readConfiguration
+-- * Context
 , Context(..)
 , makeContext
+-- * Operations
+, Mode(..)
+-- * Keys
+, KeyInfo(..)
 , KeyedAddress(..)
 , readKeyedAddress
 ) where
@@ -27,78 +45,85 @@ import System.Random.Stateful (IOGenM, newIOGenM)
 import qualified Data.ByteString.Char8 as BS (pack)
 
 
+-- | The service configuration.
 data Configuration =
   Configuration
   {
-    socketPath  :: FilePath
-  , magic       :: Maybe Word32
-  , epochSlots  :: Word64
-  , policyId    :: String
-  , assetName   :: String
-  , keyInfo     :: KeyInfo
-  , ipfsScript  :: FilePath
-  , imageFolder :: FilePath
-  , mode        :: Mode
-  , quiet       :: Bool
+    socketPath  :: FilePath     -- ^ The path for the Cardano node's socket.
+  , magic       :: Maybe Word32 -- ^ The magic number for the Cardano network, unless `mainnet`.
+  , epochSlots  :: Word64       -- ^ The number of slots per epoch.
+  , policyId    :: String       -- ^ The policy ID of the payment token.
+  , assetName   :: String       -- ^ The asset name of the payment token.
+  , keyInfo     :: KeyInfo      -- ^ The service's key.
+  , ipfsScript  :: FilePath     -- ^ The path to the IPFS pinning script.
+  , imageFolder :: FilePath     -- ^ The path to the folder of images.
+  , mode        :: Mode         -- ^ The operational mode.
+  , quiet       :: Bool         -- ^ The verbosity.
   }
     deriving (Read, Show)
 
 
+-- | The operational mode.
 data Mode =
-    Strict
-  | Lenient
-  | Aggressive
+    Strict     -- ^ Only accept requests as single transactions.
+  | Lenient    -- ^ Accept split transactions, processing when idle.
+  | Aggressive -- ^ Accept split transactions, processing as soon as possible.
     deriving (Eq, Ord, Read, Show)
 
 
+-- | Key information.
 data KeyInfo =
   KeyInfo
   {
-    addressString       :: String
-  , verificationKeyFile :: FilePath
-  , signingKeyFile      :: FilePath
+    addressString       :: String   -- ^ The address.
+  , verificationKeyFile :: FilePath -- ^ The path to the verification key file.
+  , signingKeyFile      :: FilePath -- ^ The path to the signing key file.
   }
     deriving (Read, Show)
 
 
+-- | The contetual parameters for the service.
 data Context =
   Context
   {
-    socket       :: FilePath
-  , protocol     :: ConsensusModeParams CardanoMode
-  , network      :: NetworkId
-  , pparams      :: ProtocolParameters
-  , token        :: AssetId
-  , keyedAddress :: KeyedAddress
-  , gRandom      :: IOGenM StdGen
-  , ipfsPin      :: FilePath
-  , images       :: FilePath
-  , operation    :: Mode
-  , verbose      :: Bool
+    socket       :: FilePath                        -- ^ The path for the Cardano node's socket.  
+  , protocol     :: ConsensusModeParams CardanoMode -- ^ The Cardano consensus mode.
+  , network      :: NetworkId                       -- ^ The Cardano network.
+  , pparams      :: ProtocolParameters              -- ^ The Cardano protocol.
+  , token        :: AssetId                         -- ^ The asset ID for the payment token.
+  , keyedAddress :: KeyedAddress                    -- ^ The service address.
+  , gRandom      :: IOGenM StdGen                   -- ^ The random-number generator.
+  , ipfsPin      :: FilePath                        -- ^ The path to the IPFS script for pinning images.
+  , images       :: FilePath                        -- ^ The path to the folder for images.
+  , operation    :: Mode                            -- ^ The operational mode.
+  , verbose      :: Bool                            -- ^ The verbosity.
   }
 
 
+-- | A key and it hashes.
 data KeyedAddress =
   KeyedAddress
   {
-    keyAddress       :: AddressInEra MaryEra
-  , verificationHash :: Hash PaymentKey
-  , verification     :: SomePaymentVerificationKey
-  , signing          :: SigningKey PaymentExtendedKey
+    keyAddress       :: AddressInEra MaryEra          -- ^ The address.
+  , verificationHash :: Hash PaymentKey               -- ^ The hash of the verification key.
+  , verification     :: SomePaymentVerificationKey    -- ^ The verification key.
+  , signing          :: SigningKey PaymentExtendedKey -- ^ The signing key.
   }
     deriving (Show)
 
 
+-- | Read a configuration file.
 readConfiguration :: MonadIO m
-                  => FilePath
-                  -> MantisM m Configuration
+                  => FilePath                -- ^ The path to the configuration file.
+                  -> MantisM m Configuration -- ^ The action returning the configuration.
 readConfiguration = liftIO . fmap read . readFile
 
 
+-- | Convert a configuration into a service context.
 makeContext :: MonadFail m
             => MonadIO m
-            => Configuration
-            -> MantisM m Context
+            => Configuration     -- ^ The configuration.
+            -> MantisM m Context -- ^ The action returning the context.
 makeContext Configuration{..} =
   do
     policyId' <-
@@ -124,9 +149,10 @@ makeContext Configuration{..} =
     return Context{..}
 
 
+-- | Read a key.
 readKeyedAddress :: MonadIO m
-                 => KeyInfo
-                 -> MantisM m KeyedAddress
+                 => KeyInfo                -- ^ The key information.
+                 -> MantisM m KeyedAddress -- ^ The key and its hashes.
 readKeyedAddress KeyInfo{..} =
   do
     keyAddress <- anyAddressInShelleyBasedEra <$> readAddress addressString
