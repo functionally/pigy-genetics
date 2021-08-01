@@ -378,8 +378,6 @@ printRollback :: (Origins , Origins )
               -> Chain ()
 printRollback (origins, origins') (pendings, pendings') =
   do
-    liftIO $ printOrigins "All origins:" origins
-    liftIO $ printPendings "All pendings:" pendings
     unless (origins == origins')
       . liftIO
       $ do
