@@ -3,7 +3,7 @@ PIGY Genetics Game
 
 A simple genetics game using PIGY tokens on Cardano.
 
-Instructions for using the service are available at \<<https://pigy.functionally.live/>\>.
+Instructions for using the service are available at https://pigy.functionally.live/.
 
 
 Building
@@ -32,4 +32,4 @@ Run with the following command:
 Documentation
 -------------
 
-API documentation: \<<https://functionally.github.io/pigy-genetics/>\>.
+API documentation: https://functionally.github.io/pigy-genetics/.
