@@ -46,7 +46,7 @@ package ouroboros-network-framework
   tests: False
 
 
--- ------------------------------------------------------------- --
+--  -- ------------------------------------------------------------- --
 --                                                               --
 -- For developing with `nix-shell`:                              --
 -- 1.  Run `nix-shell`.                                          --

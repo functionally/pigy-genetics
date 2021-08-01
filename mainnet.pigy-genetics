@@ -1,0 +1,17 @@
+Configuration {
+  socketPath  = "mainnet.socket"
+, magic       = Nothing
+, epochSlots  = 21600
+, policyId    = "2aa9c1557fcf8e7caa049fa0911a8724a1cdaf8037fe0b431c6ac664"
+, assetName   = "PIGYToken"
+, keyInfo     = KeyInfo
+                {
+                  addressString       = "addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd"
+                , verificationKeyFile = "pigy-genetics.payment.vkey"
+                , signingKeyFile      = "pigy-genetics.payment.skey"
+                }
+, ipfsScript  = "./ipfs-script.sh"
+, imageFolder = "pages/images"
+, mode        = Lenient
+, quiet       = False
+}

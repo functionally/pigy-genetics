@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-
 # This script requires `bash`, `ipfs`, `curl`, and `timeout` to be on the `PATH`.
-
 
 set -e
 

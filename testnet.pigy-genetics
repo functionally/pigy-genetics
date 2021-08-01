@@ -1,0 +1,17 @@
+Configuration {
+  socketPath  = "testnet.socket"
+, magic       = Just 1097911063
+, epochSlots  = 21600
+, policyId    = "8bb3b343d8e404472337966a722150048c768d0a92a9813596c5338d"
+, assetName   = "tPIGY"
+, keyInfo     = KeyInfo
+                {
+                  addressString       = "addr_test1qrpwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsqn0xdj"
+                , verificationKeyFile = "pigy-genetics.payment.vkey"
+                , signingKeyFile      = "pigy-genetics.payment.skey"
+                }
+, ipfsScript  = "./ipfs-script-noop.sh"
+, imageFolder = "tmp"
+, mode        = Lenient
+, quiet       = False
+}
