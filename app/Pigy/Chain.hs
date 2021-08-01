@@ -12,6 +12,7 @@ module Pigy.Chain (
 
 
 import Cardano.Api                                       (AddressInEra(..), AssetId(..), AssetName(..), BlockHeader(..), ChainPoint, MaryEra, PolicyId(..), Quantity(..), ScriptHash, ScriptInEra(..), ShelleyWitnessSigningKey(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
+import Control.Lens                                      (Lens', (.~), (%~), lens)
 import Control.Monad                                     (unless, when)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
@@ -28,11 +29,11 @@ import Mantis.Wallet                                     (showAddressMary, stake
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
 import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
 import Pigy.Ipfs                                         (pinImage)
-import Pigy.Types                                        (Context(..), KeyedAddress(..))
+import Pigy.Types                                        (Context(..), KeyedAddress(..), Mode(..))
 
-import qualified Data.ByteString.Char8 as BS  (ByteString, drop, isPrefixOf, pack, unpack)
-import qualified Data.Map.Strict       as M   (Map, delete, empty, fromList, fromListWith, insert, lookup, member, null, toList)
-import qualified Data.Text             as T   (pack)
+import qualified Data.ByteString.Char8 as BS (ByteString, drop, isPrefixOf, pack, unpack)
+import qualified Data.Map.Strict       as M  (Map, delete, difference, empty, fromList, fromListWith, insert, lookup, member, toList)
+import qualified Data.Text             as T  (pack)
 
 
 type MaryAddress = AddressInEra MaryEra
@@ -74,7 +75,7 @@ rollback slot = dropWhile $ (/= slot) . fst
 toSlotNo :: ChainPoint
          -> SlotNo
 toSlotNo point =
-  -- FIXME: Use safe way to find the slot number at a chain point.
+  -- FIXME: Find a less fragile way to extract the slot number at a chain point.
   case show point of
     "ChainPointAtGenesis" -> SlotNo 0
     text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
@@ -112,6 +113,26 @@ instance Default ChainState where
     }
 
 
+activeLens :: Lens' ChainState Bool
+activeLens = lens active $ \x active' -> x {active = active'}
+
+
+currentLens :: Lens' ChainState SlotNo
+currentLens = lens current $ \x current' -> x {current = current'}
+
+
+originsLens :: Lens' ChainState Origins
+originsLens = lens origins $ \x origins' -> x {origins = origins'}
+
+
+pendingsLens :: Lens' ChainState Pendings
+pendingsLens = lens pendings $ \x pendings' -> x {pendings = pendings'}
+
+
+historyLens :: Lens' ChainState History
+historyLens = lens history $ \x history' -> x {history = history'}
+
+
 type Chain a = StateT ChainState IO a
 
 
@@ -137,7 +158,7 @@ makeActive =
             putStrLn ""
             putStrLn "First idling."
         modify
-          $ \x -> x {active = True}
+          $ activeLens .~ True
 
 
 recordBlock :: SlotNo
@@ -151,11 +172,8 @@ recordBlock slot =
         putStrLn ""
         putStrLn $ "New block: " ++ show current ++ " -> " ++ show slot
     modify
-      $ \x ->
-        x {
-            current = slot
-          , history = record current (origins, pendings) history
-          }
+      $ (currentLens .~ slot)
+      . (historyLens %~ record current (origins, pendings))
 
 
 recordRollback :: SlotNo
@@ -163,21 +181,18 @@ recordRollback :: SlotNo
 recordRollback slot =
   do
     ChainState{..} <- get
+    let
+      history'@((_, (origins', pendings')) : _) = rollback slot history
     liftIO
       $ do
         putStrLn ""
         putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
-    printPending "    Prior pendings:"
-    let
-      history'@((_, (origins', pendings')) : _) = rollback slot history
+    printRollback (origins, origins') (pendings, pendings')
     modify
-      $ \x -> x {
-                  current  = slot
-                , origins  = origins'
-                , pendings = pendings'
-                , history  = history'
-                }
-    printPending "    Posterior pendings:"
+      $ (currentLens  .~ slot     )
+      . (originsLens  .~ origins' )
+      . (pendingsLens .~ pendings')
+      . (historyLens  .~ history' )
 
 
 recordInput :: SlotNo
@@ -196,15 +211,9 @@ recordInput slot txIn =
           $ do
             putStrLn ""
             putStrLn $ show slot ++ ": spent " ++ show txIn
-        state
-          $ \x ->
-            (
-              ()
-            , x {
-                  origins  = txIn `M.delete` origins
-                , pendings = txIn `M.delete` pendings
-                }
-            )
+        modify
+          $ (originsLens  %~ M.delete txIn)
+          . (pendingsLens %~ M.delete txIn)
 
 
 recordOutput :: [TxIn]
@@ -216,7 +225,7 @@ recordOutput inputs output destination value =
   do
     ChainState{..} <- get
     modify
-      $ \x -> x {origins = M.insert output destination origins}
+      $ originsLens %~ M.insert output destination
     let
       sources = mapMaybe (`M.lookup` origins) inputs
       valid = checker value
@@ -237,11 +246,12 @@ recordOutput inputs output destination value =
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
     when (destination == scriptAddress && not (null sources))
-      $ if active && valid
+      $ if active && valid && operation context == Aggressive
           then createToken [output] (head sources, value)
           else do
                  liftIO $ putStrLn "  Queued for creation."
-                 modify $ \x -> x {pendings = M.insert output (sources, value) pendings}
+                 modify
+                   $ pendingsLens %~ M.insert output (sources, value)
 
 
 createPendingSingle :: Chain ()
@@ -332,10 +342,8 @@ createToken inputs (destination, value) =
       [
         -- FIXME: Consider deleting the transactions only if the minting succeeeds.
         modify
-          $ \x -> x {
-                      origins  = input `M.delete` origins
-                    , pendings = input `M.delete` pendings
-                    }
+          $ (originsLens  %~ M.delete input)
+          . (pendingsLens %~ M.delete input)
       |
         input <-inputs
       ]
@@ -365,29 +373,67 @@ createToken inputs (destination, value) =
           Left  e  -> putStrLn $ "  " ++ e
 
 
-printPending :: String
-             -> Chain ()
-printPending message =
+printRollback :: (Origins , Origins )
+              -> (Pendings, Pendings)
+              -> Chain ()
+printRollback (origins, origins') (pendings, pendings') =
   do
-    ChainState{..} <- get
-    unless (M.null pendings)
-      .  liftIO
+    liftIO $ printOrigins "All origins:" origins
+    liftIO $ printPendings "All pendings:" pendings
+    unless (origins == origins')
+      . liftIO
       $ do
-        putStrLn message
-        sequence_
-          [
-            do
-              putStrLn $ "    " ++ show output
-              sequence_
-                [
-                  putStrLn $ "      Source: " ++ show (showAddressMary source)
-                |
-                  source <- sources
-                ]
-              printValueIO "      " value
-          |
-            (output, (sources, value)) <- M.toList pendings
-          ]
+        putStrLn "  Origins:"
+        printOrigins "Removed by rollback:"
+          $ origins `M.difference` origins'
+        printOrigins "Added by rollback:"
+          $ origins' `M.difference` origins
+    unless (pendings == pendings')
+      . liftIO
+      $ do
+        printPendings "Removed by rollback:"
+          $ pendings `M.difference` pendings'
+        putStrLn "  Pendings:"
+        printPendings "Added by rollback:"
+          $ pendings' `M.difference` pendings
+
+
+printOrigins :: String
+             -> Origins
+             -> IO ()
+printOrigins message origins' =
+  do
+    putStrLn $ "    " ++ message
+    sequence_
+      [
+        do
+          putStrLn $ "      " ++ show output
+          putStrLn $ "        Source: " ++ show (showAddressMary source)
+      |
+        (output, source) <- M.toList origins'
+      ]
+
+
+printPendings :: String
+              -> Pendings
+              -> IO ()
+printPendings message pendings' =
+  do
+    putStrLn $ "    " ++ message
+    sequence_
+      [
+        do
+          putStrLn $ "      " ++ show output
+          sequence_
+            [
+              putStrLn $ "        Source: " ++ show (showAddressMary source)
+            |
+              source <- sources
+            ]
+          printValueIO "      " value
+      |
+        (output, (sources, value)) <- M.toList pendings'
+      ]
 
 
 runChain :: MonadFail m
@@ -422,8 +468,10 @@ runChain context@Context{..} =
         withChainState chainState
           $ do
             makeActive
-            createPendingSingle
-            createPendingMultiple
+            unless (operation == Lenient)
+              createPendingSingle
+            unless (operation == Strict)
+              createPendingMultiple
             return False
       inHandler (BlockHeader slot _ _) txIn =
         withChainState chainState

@@ -4,6 +4,7 @@
 
 module Pigy.Types (
   Configuration(..)
+, Mode(..)
 , KeyInfo(..)
 , readConfiguration
 , Context(..)
@@ -37,9 +38,17 @@ data Configuration =
   , keyInfo     :: KeyInfo
   , ipfsScript  :: FilePath
   , imageFolder :: FilePath
+  , mode        :: Mode
   , quiet       :: Bool
   }
     deriving (Read, Show)
+
+
+data Mode =
+    Strict
+  | Lenient
+  | Aggressive
+    deriving (Eq, Ord, Read, Show)
 
 
 data KeyInfo =
@@ -64,6 +73,7 @@ data Context =
   , gRandom      :: IOGenM StdGen
   , ipfsPin      :: FilePath
   , images       :: FilePath
+  , operation    :: Mode
   , verbose      :: Bool
   }
 
@@ -108,6 +118,7 @@ makeContext Configuration{..} =
       token = AssetId policyId' assetName'
       ipfsPin = ipfsScript
       images = imageFolder
+      operation = mode
       verbose = not quiet
     pparams <- queryProtocol socketPath protocol network
     return Context{..}
