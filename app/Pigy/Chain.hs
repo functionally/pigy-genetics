@@ -36,10 +36,11 @@ import Mantis.Types               (MantisM, runMantisToIO)
 import Mantis.Transaction         (printValueIO)
 import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
 import Pigy.Chain.Mint            (checkValue, mint)
-import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, withChainState)
+import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
-import qualified Data.Map.Strict as M  (delete, difference, fromListWith, insert, lookup, member, toList)
+import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, toList)
+import qualified Data.Set        as S (delete, member, union)
 
 
 -- | The Ouroboros security parameter.
@@ -117,10 +118,12 @@ recordRollback slot =
         putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
     printRollback (origins, origins') (pendings, pendings')
     modify
-      $ (currentLens  .~ slot     )
-      . (originsLens  .~ origins' )
-      . (pendingsLens .~ pendings')
-      . (historyLens  .~ history' )
+      $ (currentLens  .~ slot                                                  )
+      . (originsLens  .~ origins'                                              )
+      . (pendingsLens .~ pendings'                                             )
+      . (historyLens  .~ history'                                              )
+      . (undosLens    %~ S.union (M.keysSet $ origins  `M.difference` origins'))
+      . (redosLens    %~ S.union (M.keysSet $ origins' `M.difference` origins ))
 
 
 -- | Record the input to a transaction.
@@ -130,6 +133,14 @@ recordInput :: SlotNo   -- ^ The slot number.
 recordInput slot txIn =
   do
     ChainState{..} <- get
+    when (txIn `S.member` redos)
+      $ do
+        liftIO
+          $ do
+            putStrLn ""
+            putStrLn $ "Re-spending rolled-back spending: " ++ show txIn
+        modify
+          $ redosLens %~ S.delete txIn
     let
       found     = txIn `M.member` origins
       isPending = txIn `M.member` pendings
@@ -154,6 +165,14 @@ recordOutput :: [TxIn]      -- ^ The spend UTxOs.
 recordOutput inputs output destination value =
   do
     ChainState{..} <- get
+    when (output `S.member` undos)
+      $ do
+        liftIO
+          $ do
+            putStrLn ""
+            putStrLn $ "Re-transacting rolled-back transaction: " ++ show output
+        modify
+          $ undosLens %~ S.delete output
     modify
       $ originsLens %~ M.insert output destination
     let

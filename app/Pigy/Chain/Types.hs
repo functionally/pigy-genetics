@@ -29,6 +29,8 @@ module Pigy.Chain.Types (
 , originsLens
 , pendingsLens
 , historyLens
+, undosLens
+, redosLens
 , withChainState
 ) where
 
@@ -40,7 +42,8 @@ import Data.Default               (Default(..))
 import Data.IORef                 (IORef, readIORef, writeIORef)
 import Pigy.Types                 (Context(..))
 
-import qualified Data.Map.Strict as M  (Map, empty)
+import qualified Data.Map.Strict as M (Map, empty)
+import qualified Data.Set        as S (Set, empty)
 
 
 -- | A Mary address.
@@ -73,6 +76,8 @@ data ChainState =
   , origins       :: Origins        -- ^ The originating addresses of UTxOs being tracked.
   , pendings      :: Pendings       -- ^ Queued minting operations.
   , history       :: History        -- ^ The transaction history, for rollbacks.
+  , undos         :: S.Set TxIn     -- ^ Transactions that were removed by a rollback.
+  , redos         :: S.Set TxIn     -- ^ Transactions that were re-added by a rollback.
   , scriptAddress :: MaryAddress    -- ^ The minting script address.
   , script        :: MaryScript     -- ^ The minting script.
   , scriptHash    :: ScriptHash     -- ^ The hash of the miting script.
@@ -89,6 +94,8 @@ instance Default ChainState where
     , origins       = M.empty
     , pendings      = M.empty
     , history       = [(SlotNo 0, (M.empty, M.empty))]
+    , undos         = S.empty
+    , redos         = S.empty
     , scriptAddress = undefined
     , script        = undefined
     , scriptHash    = undefined
@@ -119,6 +126,16 @@ pendingsLens = lens pendings $ \x pendings' -> x {pendings = pendings'}
 -- | Lens for the tracking history.
 historyLens :: Lens' ChainState History
 historyLens = lens history $ \x history' -> x {history = history'}
+
+
+-- | Lens for the tracking transactions that were removed in a rollback.
+undosLens :: Lens' ChainState (S.Set TxIn)
+undosLens = lens undos $ \x undos' -> x {undos = undos'}
+
+
+-- | Lens for the tracking transactions that were re-added in a rollback.
+redosLens :: Lens' ChainState (S.Set TxIn)
+redosLens = lens redos $ \x redos' -> x {redos = redos'}
 
 
 -- | The monad for the chain state.
