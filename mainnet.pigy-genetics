@@ -13,5 +13,5 @@ Configuration {
 , ipfsScript  = "./ipfs-script.sh"
 , imageFolder = "pages/images"
 , mode        = Lenient
-, quiet       = False
+, quiet       = True
 }

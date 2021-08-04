@@ -4,6 +4,10 @@ tmp/
 *.sw?
 dist-newstyle/
 build
+pages/family-tree.tsv
+pages/family-tree.dot
+pages/family-tree.svg
+pages/family-tree.png
 pages/images/
 design/
 *.socket
@@ -14,3 +18,5 @@ design/
 *.path
 *.secret
 *.key
+*.json
+*.mantis
