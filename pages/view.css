@@ -1,16 +1,42 @@
-
-
-#rules-table th[colspan] {
-  text-align: center
-; font-style: italic
+#instructions img {
+  max-width   : 95%
+; max-height  : 95vh
+; display     : block
+; margin-left : auto
+; margin-right: auto
 }
 
-#rules-table th[rowspan] {
-  vertical-align: bottom
+
+#navigation span {
+  color           : 
+; background-color: #e85d91ff
+; padding-top     : 0.3em
+; padding-bottom  : 0.3em
+; padding-left    : 1em
+; padding-right   : 1em
 }
 
-#rules-table th, #rules-table td {
-  vertical-align: top
+#navigation span a {
+  color          : #002b73ff
+; text-decoration: none
+}
+
+
+#examples-table td:nth-of-type(1) {
+  width: 10%
+}
+
+#examples-table td {
+  width: 30%
+}
+
+#examples-table img {
+  width           : 80%
+; display         : block
+; margin-left     : auto
+; margin-right    : auto
+; vertical-align  : middle
+; background-color: white
 }
 
 table {
@@ -19,85 +45,23 @@ table {
 ; border-collapse: collapse
 }
 
-
-#examples-table td[colspan] {
-  text-align: center
-}
-
-#examples-table td:nth-of-type(3) img {
-  width         : 15vw
-; display       : block
-; margin-top    : auto
-; margin-bottom : auto
-; vertical-align: center
-}
-
-#examples-table td:nth-of-type(4) img {
-  display     : block
-; margin-left : auto
-; margin-right: auto
-}
-
-#examples-table td:nth-of-type(5) img {
-  width         : 20vw
-; margin-top    : auto
-; margin-bottom : auto
-; vertical-align: center
-}
-
-#example-minting img {
-  width: 40vw
-}
-
-#example-blending img {
-  width: 45.15vw
-}
-
-#example-burning img {
-  width: 35.96vw
-}
-
-#navigation span {
-  color  : white
-; background-color: lightgray
-; padding-top     : 0.3em
-; padding-bottom  : 0.3em
-; padding-left    : 1em
-; padding-right   : 1em
-}
-
-#navigation span a {
-  text-decoration: none
-; color          : black
-}
-
-
-#family-tree {
-  position: relative
-; top     : 0
-; right   : 0
-; float   : right
-; width   : 30vw
-}
-
-
 th, td {
-  text-align     : left
-; border-style   : solid
-; border-width   : thin
-; padding        : 4px
+  text-align    : left
+; vertical-align: top
+; border-style  : solid
+; border-width  : thin
+; padding       : 4px
 }
 
-
-.warning {
-  color     : red
-}
 
 
 a {
-  text-decoration: none
+  color          : #e85d91ff
+; text-decoration: none
 }
 
 body {
-  font-family: sans-serif
+  color           : white
+; background-color: #0e0e34ff
+; font-family     : Monserat, sans-serif
 }

@@ -3,21 +3,26 @@
   <head profile="http://www.w3.org/2005/10/profile">                                                      
     <!--link rel="icon" type="image/vnd.microsoft.icon" href="/favicon.ico"/-->
     <link href="view.css" type="text/css" rel="stylesheet"/>
-    <title>Genetics Game for Pig Images</title>
+    <title>Genetics Game for Pig Images, using the PIGY Token</title>
   </head>
   <body>
-    <a target="pigy-genetics" href="family-tree.svg"><img id="family-tree" src="family-tree.png"/></a>
-    <h1>Genetics Game for Pig Images, using the PIGY Token</h1>
-    <h3>A pig image native-token service for the Cardano blockchain.</h3>
+    <h1>Genetics Game for Pig Images</h1>
+    <h3>A pig-image native-token service for the Cardano blockchain, powered by the <a target="pigy-genetics" href="https://www.pigytoken.com">PIGY Token</a>.</h3>
+    <p>Address: <a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><code>addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd</code></a></p>
+    <div id="instructions">
+      <img src="instructions.png"/>
+    </div>
+    <hr/>
     <div id="navigation">
+      <span><a target="pigy-genetics" href="family-tree.svg">family tree</a></span>
       <span><a href="#examples">examples</a></span>
       <span><a href="#rules">rules</a></span>
       <span><a href="#details">details</a></span>
       <span><a href="#disclaimer">disclaimer</a></span>
       <span><a href="#contact">contact</a></span>
     </div>
-    <p><em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this <span class="warning">experimental service</span>.</em></p>
-    <p>This game on the Cardano blockchain is a simple image-generating service that is powered by the <a target="pigy-genetics" href="https://www.pigytoken.com">PIGY Token</a>. Sending the PIGY Token and ADA to the address below will either mint, blend, or burn Cardano native tokens, each with a customized image of a pig.</p>
+    <p><em>Please read the important <a href="#disclaimer">disclaimer</a> regarding the use of this service.</em></p>
+    <p>This game on the Cardano blockchain is a simple image-generating service that is powered by the <a target="pigy-genetics" href="https://www.pigytoken.com">PIGY Token</a>. Sending the PIGY Token and ADA to the address above will either mint, blend, or burn Cardano native tokens, each with a customized image of a pig.</p>
     <p>The images can be viewed by visiting the IPFS link in the minting metadata for the token, or by visiting a token-viewing explorer such as <a target="pigy-genetics" href="https://pool.pm/tokens">pool.pm/tokens</a>.</p>
     <p>The image-blending process randomly combines attributes of the "parent" images to create a new "child" image. Carefully chosen blending strategies can produce "offspring" with particular target characteristics. The diagram to the upper right shows the "family tree" for the first pig image tokens created using this service.</p>
     <p><em>If no PIGY or if too little ADA is sent in the transaction, the service will not automatically mint, blend, or burn the pig image token; nevertheless, the funds will be returned to the sending address via a manually-constructed transaction, in which case there may be a considerable delay (hours or days) in receiving them back. If you fail to receive the pig image token, please <span class="warning">check the metadata in the refund transaction</span> to learn why it failed.</em></p>
@@ -26,29 +31,67 @@
     <hr/>
     <h2 id="examples">Examples</h2>
     <table id="examples-table">
+      <thead>
+        <tr>
+          <th/>
+          <th>Minting</th>
+          <th>Blending</th>
+          <th>Burning</th>
+      </thead>
       <tbody>
         <tr>
-          <td colspan="5">Address for pig image token service: <a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><code>addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd</code></a></td>
+          <td>Instructions</td>
+          <td>Send 2.0 ADA and 1 PIGY to the address above, and soon receive back a new pig image token, along with the original inputs minus the ~0.20 ADA transaction fee. <em class="warning">Sending more than 1 PIGY does not mint more than one pig image token.</em><!--br/><a target="pigy-genetics" href="example-minting.png"><img src="example-minting.png"/></a><br/-->An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/2a61666d218fa9c94aecb334318fc283b1ed32389fe6ac2450f981aa4f50b74a">here</a>.</td>
+          <td>Send 2.5 ADA and 1 PIGY and <em>two pig image tokens</em> to the address above, and soon receive back a new pig image token that blends characteristics of the original two tokens, along with the original inputs minus the ~0.22 ADA transaction fee.<!--br/><a target="pigy-genetics" href="example-blending.png"><img src="example-blending.png"/></a><br/-->An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/0a42ba6983ee39a8d3ec66bfaeedd869b5b3069dc702cce9c5daf77bb5c93f45">here</a></td>
+          <td>Send 2.0 ADA and 1 PIGY and <em>one pig image token</em> to the address above, in order to burn the pig image token and soon receive back the original inputs minus the ~0.20 ADA transaction fee.<!--br/><a target="pigy-genetics" href="example-burning.png"><img src="example-burning.png"/></a><br/-->An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/1756e4a3c6a3a67e34c2b8f64faccc349061f2eb87964fbf7841853d38d4ead9">here</a>.</td>
         </tr>
         <tr>
-          <td>Minting</td>
-          <td>Send 2.0 ADA and 1 PIGY to the address above, and soon receive back a new pig image token, along with the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/2a61666d218fa9c94aecb334318fc283b1ed32389fe6ac2450f981aa4f50b74a">here</a>. <em class="warning">Sending more than 1 PIGY does not mint more than one pig image token.</em></td>
-          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-mint.png"><img src="daedalus-annotated-mint.png"/></a></td>
+          <td>Daedalus and wallets that can send several tokens in a single transaction.</td>
+          <td><a target="pigy-genetics" href="daedalus-annotated-mint.png"><img src="daedalus-annotated-mint.png"/></a></td>
+          <td><a target="pigy-genetics" href="daedalus-annotated-blend.png"><img src="daedalus-annotated-blend.png"/></a></td>
+          <td><a target="pigy-genetics" href="daedalus-annotated-burn.png"><img src="daedalus-annotated-burn.png"/></a></td>
+        </tr>
+        <tr>
+          <td>Yoroi and wallets that <em>cannot</em> send more than one token in a single transaction.</td>
+          <td>
+            <ol>
+              <li>Send 2.0 ADA to the service.</li>
+              <li>Send 1 PIGY to the service.</li>
+            </ol>
+          </td>
+          <td>
+            <ol>
+              <li>Send the first pig-image token to the service.</li>
+              <li>Send the second pig-image token to the service.</li>
+              <li>Send 2.5 ADA to the service.</li>
+              <li>Send 1 PIGY to the service.</li>
+            </ol>
+          </td>
+          <td>
+            <ol>
+              <li>Send the pig-image token to the service.</li>
+              <li>Send 2.0 ADA to the service.</li>
+              <li>Send 1 PIGY to the service.</li>
+            </ol>
+          </td>
+        </tr>
+
+
+
+
+<!--
           <td id="example-minting"><a target="pigy-genetics" href="example-minting.png"><img src="example-minting.png"/></a></td>
           <td rowspan="3"><a target="pigy-genetics" href="https://cardanoscan.io/address/01c2ecb5f719bd70f69301c7b6872c6fb52dd368a162428a2c1b8d1aaf21754eed75f770c63a217e229dda0a1078808b4441a526027e6ddf1b"><img src="addr1q8pwed0hrx7hpa5nq8rmdpevd76jm5mg593y9z3vrwx34tepw48w6a0hwrrr5gt7y2wa5zss0zqgk3zp55nqylndmudsr9jxpd.png"/></a></td>
         </tr>
         <tr>
           <td>Blending</td>
-          <td>Send 2.5 ADA and 1 PIGY and <em>two pig image tokens</em> to the address above, and soon receive back a new pig image token that blends characteristics of the original two tokens, along with the original inputs minus the ~0.22 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/0a42ba6983ee39a8d3ec66bfaeedd869b5b3069dc702cce9c5daf77bb5c93f45">here</a><br/><em class="warning">When sending the ADA, pig image tokens, and PIGY in separate transactions, the minting will occur as soon as sufficient PIGY and ADA are received. Therefore, please send the PIGY as the last transaction in the series, so that all of the pig image tokens are received beforehand.</em></td>
-          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-blend.png"><img src="daedalus-annotated-blend.png"/></a></td>
           <td id="example-blending"><a target="pigy-genetics" href="example-blending.png"><img src="example-blending.png"/></a></td>
         </tr>
         <tr>
           <td>Burning</td>
-          <td>Send 2.0 ADA and 1 PIGY and <em>one pig image token</em> to the address above, in order to burn the pig image token and soon receive back the original inputs minus the ~0.20 ADA transaction fee. An example transaction is <a target="pigy-genetics" href="https://cardanoscan.io/transaction/1756e4a3c6a3a67e34c2b8f64faccc349061f2eb87964fbf7841853d38d4ead9">here</a>.</td>
-          <td>Here is how to create the transaction in the Daedalus wallet:<br/><a target="pigy-genetics" href="daedalus-annotated-burn.png"><img src="daedalus-annotated-burn.png"/></a></td>
           <td id="example-burning"><a target="pigy-genetics" href="example-burning.png"><img src="example-burning.png"/></a></td>
         </tr>
+-->
       </tbody>
     </table>
     <hr/>
