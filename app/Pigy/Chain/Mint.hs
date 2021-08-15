@@ -114,7 +114,7 @@ mint Context{..} txIns destination value message =
                               putStrLn "  New token."
                               newGenotype gRandom
                        else do
-                              putStrLn $ "  Crossover token: " ++ show (BS.unpack <$> pigs)
+                              putStrLn $ "  Crossover token: " ++ show (("PIG@" ++) . BS.unpack <$> pigs)
                               crossover gRandom $ mapMaybe (fromChromosome . BS.unpack) pigs
                (chromosome, cid) <- pinImage ipfsPin images genotype
                let
@@ -180,4 +180,6 @@ mint Context{..} txIns destination value message =
     result <- submitTransaction socket protocol network txSigned
     case result of
       SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
-      SubmitFail reason -> throwError  $ "  Failure: " ++ show reason
+      SubmitFail reason -> do
+                             printMantis $ "  Tx: " ++ show txRaw
+                             throwError  $ "  Failure: " ++ show reason

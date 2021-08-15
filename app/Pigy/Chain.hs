@@ -185,12 +185,13 @@ recordOutput inputs output destination value =
         putStrLn $ "Output: " ++ show output
         sequence_
           [
-            putStrLn $ "  Source: " ++ show (showAddressMary source')
+            do
+              putStrLn $ "  Source: " ++ show (showAddressMary source')
+              putStrLn $ "    Stake: " ++ show (stakeReferenceMary source')
           |
             source' <- sources
           ]
         putStrLn $ "  Destination: " ++ showAddressMary destination
-        putStrLn $ "  Stake: " ++ show (stakeReferenceMary destination)
         putStrLn $ "  To me: " ++ show (destination == scriptAddress)
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
@@ -229,7 +230,7 @@ createPendingMultiple =
             . liftIO
             $ do
               putStrLn ""
-              putStrLn "Multiple input transactions:"
+              putStrLn "Processing input transactions:"
               putStrLn $ "  Stake: " ++ stake
               sequence_
                 [
@@ -320,9 +321,7 @@ createToken inputs (destination, value) =
                         , "Also, please send the tokens and ADA in a single transaction."
                         ]
         result <- runMantisToIO $ mint context inputs destination value message
-        case result of
-          Right () -> return ()
-          Left  e  -> putStrLn $ "  " ++ e
+        either print return result
 
 
 -- | Print diagnostic information for a rollback.
