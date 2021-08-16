@@ -29,7 +29,7 @@ import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Control.Monad.State.Strict (MonadState(..), modify)
 import Data.Default               (Default(..))
 import Data.IORef                 (newIORef)
-import Data.Maybe                 (mapMaybe)
+import Data.Maybe                 (isNothing, catMaybes)
 import Mantis.Chain               (watchTransactions)
 import Mantis.Script              (mintingScript)
 import Mantis.Types               (MantisM, runMantisToIO)
@@ -175,8 +175,22 @@ recordOutput inputs output destination value =
           $ undosLens %~ S.delete output
     modify
       $ originsLens %~ M.insert output destination
+    sources <-
+      catMaybes
+        <$> sequence
+        [
+          do
+            when (isNothing origin)
+              . liftIO
+              $ do
+                putStrLn ""
+                putStrLn $ "Missing origin for input: " ++ show input
+            return origin
+        |
+          input <- inputs
+        , let origin = input `M.lookup` origins
+        ]
     let
-      sources = mapMaybe (`M.lookup` origins) inputs
       valid = checker value
     when (verbose context || destination == scriptAddress)
       . liftIO
