@@ -142,7 +142,7 @@ recordInput slot txIn =
       isPending = txIn `M.member` pendings
     when found
       $ do
-        when (verbose context || isPending)
+        when isPending
           . liftIO
           $ do
             putStrLn ""
