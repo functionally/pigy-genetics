@@ -39,7 +39,7 @@ import Pigy.Chain.Mint            (checkValue, mint)
 import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
-import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, toList)
+import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, size, toList)
 import qualified Data.Set        as S (delete, member, union)
 
 
@@ -95,6 +95,8 @@ recordBlock slot =
       $ do
         putStrLn ""
         putStrLn $ "New block: " ++ show current ++ " -> " ++ show slot
+        putStrLn $ "  Origins:  " ++ show (M.size origins )
+        putStrLn $ "  Pendings: " ++ show (M.size pendings)
     modify
       $ (currentLens .~ slot)
       . (historyLens %~ record (kSecurity context) current (origins, pendings))
