@@ -22,14 +22,14 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, selectAsset)
+import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Control.Monad.State.Strict (MonadState(..), modify)
 import Data.Default               (Default(..))
 import Data.IORef                 (newIORef)
-import Data.Maybe                 (isNothing, catMaybes)
+import Data.Maybe                 (mapMaybe)
 import Mantis.Chain               (watchTransactions)
 import Mantis.Script              (mintingScript)
 import Mantis.Types               (MantisM, runMantisToIO)
@@ -175,22 +175,8 @@ recordOutput inputs output destination value =
           $ undosLens %~ S.delete output
     modify
       $ originsLens %~ M.insert output destination
-    sources <-
-      catMaybes
-        <$> sequence
-        [
-          do
-            when (isNothing origin)
-              . liftIO
-              $ do
-                putStrLn ""
-                putStrLn $ "Missing origin for input: " ++ show input
-            return origin
-        |
-          input <- inputs
-        , let origin = input `M.lookup` origins
-        ]
     let
+      sources = mapMaybe (`M.lookup` origins) inputs
       valid = checker value
     when (verbose context || destination == scriptAddress)
       . liftIO
@@ -444,12 +430,11 @@ runChain context@Context{..} =
         withChainState chainState
           $ recordInput slot txIn
       outHandler _ inputs output (TxOut destination txOutValue) =
-        case txOutValue of
-          TxOutValue _ value ->
-            when (selectAsset value token > 0 || destination == keyAddress)
-              . withChainState chainState
-              $ recordOutput inputs output destination value
-          _ -> return ()
+        withChainState chainState
+          . recordOutput inputs output destination
+          $ case txOutValue of
+              TxOutValue   _ value    -> value
+              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
     watchTransactions
       socket
       protocol

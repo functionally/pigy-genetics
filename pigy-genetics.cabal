@@ -2,7 +2,7 @@ cabal-version: >= 1.10
 
 name              : pigy-genetics
 description       : Service for PIGY token genetics.
-version           : 0.1.4.4
+version           : 0.1.4.5
 license           : MIT
 license-file      : LICENSE
 author            : Brian W Bush
