@@ -22,7 +22,7 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
+import Cardano.Api                (AssetId, BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -43,17 +43,13 @@ import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert,
 import qualified Data.Set        as S (delete, member, union)
 
 
--- | The Ouroboros security parameter.
-kSecurity :: Int
-kSecurity = 2160
-
-
 -- | Record history.
-record :: SlotNo              -- ^ The curent slot number.
+record :: Int                 -- ^ The number of rollbacks to allow.
+       -> SlotNo              -- ^ The curent slot number.
        -> (Origins, Pendings) -- ^ The tracked transactions and queued mintings.
        -> History             -- ^ The original history.
        -> History             -- ^ The augmented history.
-record slot sourcePending = take kSecurity . ((slot, sourcePending) :)
+record rollbacks slot sourcePending = take rollbacks . ((slot, sourcePending) :)
 
 
 -- | Roll back history.
@@ -101,7 +97,7 @@ recordBlock slot =
         putStrLn $ "New block: " ++ show current ++ " -> " ++ show slot
     modify
       $ (currentLens .~ slot)
-      . (historyLens %~ record current (origins, pendings))
+      . (historyLens %~ record (kSecurity context) current (origins, pendings))
 
 
 -- | Roll back the chain state.
@@ -157,12 +153,13 @@ recordInput slot txIn =
 
 
 -- | Record the output of a transaction.
-recordOutput :: [TxIn]      -- ^ The spend UTxOs.
+recordOutput :: AssetId     -- ^ The payment token.
+             -> [TxIn]      -- ^ The spend UTxOs.
              -> TxIn        -- ^ The UTxO.
              -> MaryAddress -- ^ The destination address.
              -> Value       -- ^ The total value.
              -> Chain ()    -- ^ The action to modify the chain state.
-recordOutput inputs output destination value =
+recordOutput token inputs output destination value =
   do
     ChainState{..} <- get
     when (output `S.member` undos)
@@ -178,7 +175,7 @@ recordOutput inputs output destination value =
     let
       sources = mapMaybe (`M.lookup` origins) inputs
       valid = checker value
-    when (verbose context || destination == scriptAddress)
+    when (verbose context && selectAsset value token > 0 || destination == scriptAddress)
       . liftIO
       $ do
         putStrLn ""
@@ -431,7 +428,7 @@ runChain context@Context{..} =
           $ recordInput slot txIn
       outHandler _ inputs output (TxOut destination txOutValue) =
         withChainState chainState
-          . recordOutput inputs output destination
+          . recordOutput token inputs output destination
           $ case txOutValue of
               TxOutValue   _ value    -> value
               TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
