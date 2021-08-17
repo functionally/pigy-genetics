@@ -22,7 +22,7 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                (AssetId, BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
+import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -35,7 +35,7 @@ import Mantis.Script              (mintingScript)
 import Mantis.Types               (MantisM, runMantisToIO)
 import Mantis.Transaction         (printValueIO)
 import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
-import Pigy.Chain.Mint            (checkValue, mint)
+import Pigy.Chain.Mint            (checkValue, findPigs, mint)
 import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
@@ -144,7 +144,7 @@ recordInput slot txIn =
       isPending = txIn `M.member` pendings
     when found
       $ do
-        when isPending
+        when (verbose context || isPending)
           . liftIO
           $ do
             putStrLn ""
@@ -155,13 +155,12 @@ recordInput slot txIn =
 
 
 -- | Record the output of a transaction.
-recordOutput :: AssetId     -- ^ The payment token.
-             -> [TxIn]      -- ^ The spend UTxOs.
+recordOutput :: [TxIn]      -- ^ The spend UTxOs.
              -> TxIn        -- ^ The UTxO.
              -> MaryAddress -- ^ The destination address.
              -> Value       -- ^ The total value.
              -> Chain ()    -- ^ The action to modify the chain state.
-recordOutput token inputs output destination value =
+recordOutput inputs output destination value =
   do
     ChainState{..} <- get
     when (output `S.member` undos)
@@ -177,7 +176,7 @@ recordOutput token inputs output destination value =
     let
       sources = mapMaybe (`M.lookup` origins) inputs
       valid = checker value
-    when (verbose context && selectAsset value token > 0 || destination == scriptAddress)
+    when (verbose context || destination == scriptAddress)
       . liftIO
       $ do
         putStrLn ""
@@ -429,11 +428,17 @@ runChain context@Context{..} =
         withChainState chainState
           $ recordInput slot txIn
       outHandler _ inputs output (TxOut destination txOutValue) =
-        withChainState chainState
-          . recordOutput token inputs output destination
-          $ case txOutValue of
-              TxOutValue   _ value    -> value
+        let
+          value =
+            case txOutValue of
+              TxOutValue   _ value'   -> value'
               TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
+          hasToken = selectAsset value token > 0
+          hasImage = not . null $ findPigs scriptHash value
+        in
+          when (hasToken || hasImage || destination == keyAddress)
+            . withChainState chainState
+            $ recordOutput inputs output destination value
     watchTransactions
       socket
       protocol
