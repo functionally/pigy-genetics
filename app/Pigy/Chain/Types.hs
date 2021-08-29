@@ -32,7 +32,7 @@ module Pigy.Chain.Types (
 ) where
 
 
-import Cardano.Api                (AddressInEra(..), ScriptHash, SimpleScript(..), SimpleScriptV2, SlotNo(..), TxIn(..), Value)
+import Cardano.Api                (AddressAny, ScriptHash, SimpleScript(..), SimpleScriptV2, SlotNo(..), TxIn(..), Value)
 import Control.Lens               (Lens', lens)
 import Control.Monad.State.Strict (StateT(..))
 import Data.Default               (Default(..))
@@ -44,36 +44,36 @@ import qualified Data.Set        as S (Set, empty)
 
 
 -- | Map of origins of transactions.
-type Origins era = M.Map TxIn (AddressInEra era)
+type Origins = M.Map TxIn AddressAny
 
 
 -- | Map of transactions that to be processed.
-type Pendings era = M.Map TxIn ([AddressInEra era], Value)
+type Pendings = M.Map TxIn ([AddressAny], Value)
 
 
 -- | History of transaction origins and pending transactions.
-type History era = [(SlotNo, (Origins era, Pendings era))]
+type History = [(SlotNo, (Origins, Pendings))]
 
 
 -- | The state of the chain.
-data ChainState era =
+data ChainState =
   ChainState
   {
-    context       :: Context era                 -- ^ The service context.
+    context       :: Context                     -- ^ The service context.
   , active        :: Bool                        -- ^ Whether the service can mint.
   , current       :: SlotNo                      -- ^ The curent slot number.
-  , origins       :: Origins era                 -- ^ The originating addresses of UTxOs being tracked.
-  , pendings      :: Pendings era                -- ^ Queued minting operations.
-  , history       :: History era                 -- ^ The transaction history, for rollbacks.
+  , origins       :: Origins                     -- ^ The originating addresses of UTxOs being tracked.
+  , pendings      :: Pendings                    -- ^ Queued minting operations.
+  , history       :: History                     -- ^ The transaction history, for rollbacks.
   , undos         :: S.Set TxIn                  -- ^ Transactions that were removed by a rollback.
   , redos         :: S.Set TxIn                  -- ^ Transactions that were re-added by a rollback.
-  , scriptAddress :: AddressInEra era            -- ^ The minting script address.
+  , scriptAddress :: AddressAny                  -- ^ The minting script address.
   , script        :: SimpleScript SimpleScriptV2 -- ^ The minting script.
   , scriptHash    :: ScriptHash                  -- ^ The hash of the miting script.
   , checker       :: Value -> Bool               -- ^ Function to check validity.
   }
 
-instance Default (ChainState era) where
+instance Default ChainState where
   def =
     ChainState
     {
@@ -93,48 +93,48 @@ instance Default (ChainState era) where
 
 
 -- | Lens for the active state.
-activeLens :: Lens' (ChainState era) Bool
+activeLens :: Lens' ChainState Bool
 activeLens = lens active $ \x active' -> x {active = active'}
 
 
 -- | Lens for the current slot number.
-currentLens :: Lens' (ChainState era) SlotNo
+currentLens :: Lens' ChainState SlotNo
 currentLens = lens current $ \x current' -> x {current = current'}
 
 
 -- | Lens for the originating addresses being tracked.
-originsLens :: Lens' (ChainState era) (Origins era)
+originsLens :: Lens' ChainState Origins
 originsLens = lens origins $ \x origins' -> x {origins = origins'}
 
 
 -- | Lens for the queued mintings.
-pendingsLens :: Lens' (ChainState era) (Pendings era)
+pendingsLens :: Lens' ChainState Pendings
 pendingsLens = lens pendings $ \x pendings' -> x {pendings = pendings'}
 
 
 -- | Lens for the tracking history.
-historyLens :: Lens' (ChainState era) (History era)
+historyLens :: Lens' ChainState History
 historyLens = lens history $ \x history' -> x {history = history'}
 
 
 -- | Lens for the tracking transactions that were removed in a rollback.
-undosLens :: Lens' (ChainState era) (S.Set TxIn)
+undosLens :: Lens' ChainState (S.Set TxIn)
 undosLens = lens undos $ \x undos' -> x {undos = undos'}
 
 
 -- | Lens for the tracking transactions that were re-added in a rollback.
-redosLens :: Lens' (ChainState era) (S.Set TxIn)
+redosLens :: Lens' ChainState (S.Set TxIn)
 redosLens = lens redos $ \x redos' -> x {redos = redos'}
 
 
 -- | The monad for the chain state.
-type Chain era a = StateT (ChainState era) IO a
+type Chain a = StateT ChainState IO a
 
 
 -- | Modify the chain state.
-withChainState :: IORef (ChainState era) -- ^ Reference to the chain state.
-               -> Chain era a            -- ^ Action for modifying the chain state.
-               -> IO a                   -- ^ Action returning the result of the modification.
+withChainState :: IORef ChainState -- ^ Reference to the chain state.
+               -> Chain a          -- ^ Action for modifying the chain state.
+               -> IO a             -- ^ Action returning the result of the modification.
 withChainState ref transition =
   do
     initial <- readIORef ref

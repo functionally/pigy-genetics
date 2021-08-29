@@ -13,7 +13,8 @@
 -----------------------------------------------------------------------------
 
 
-{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE RecordWildCards #-}
 
 
 module Pigy.Chain (
@@ -22,28 +23,21 @@ module Pigy.Chain (
 ) where
 
 
-<<<<<<< HEAD
-import Cardano.Api                (AddressInEra, AssetId, BlockHeader(..), ChainPoint, IsCardanoEra, IsShelleyBasedEra, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, selectAsset)
-=======
-import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
->>>>>>> b141755fccae69033c1196b2f58cf4d044d48cb0
+import Cardano.Api                (AddressAny, AddressInEra(..), AddressTypeInEra(..), BlockHeader(..), ChainPoint(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset, toAddressAny)
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Control.Monad.State.Strict (MonadState(..), modify)
 import Data.Default               (Default(..))
-import Data.IORef                 (IORef, newIORef)
+import Data.IORef                 (newIORef)
 import Data.Maybe                 (mapMaybe)
 import Mantis.Chain               (watchTransactions)
 import Mantis.Script              (mintingScript)
 import Mantis.Types               (MantisM, runMantisToIO)
 import Mantis.Transaction         (printValueIO)
-import Mantis.Wallet              (showAddressInEra, stakeReferenceInEra)
-import Pigy.Chain.Mint            (checkValue, mint)
-import Pigy.Chain.Types           (Chain, ChainState(..), History, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
-import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
+import Mantis.Wallet              (showAddress, stakeReference)
 import Pigy.Chain.Mint            (checkValue, findPigs, mint)
-import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
+import Pigy.Chain.Types           (Chain, ChainState(..), History, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
 import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, size, toList)
@@ -60,24 +54,21 @@ record rollbacks slot sourcePending = take rollbacks . ((slot, sourcePending) :)
 
 
 -- | Roll back history.
-rollback :: SlotNo      -- ^ The slot number to revert to.
-         -> History era -- ^ The original history.
-         -> History era -- ^ The rolled-back history.
+rollback :: SlotNo  -- ^ The slot number to revert to.
+         -> History -- ^ The original history.
+         -> History -- ^ The rolled-back history.
 rollback slot = dropWhile $ (/= slot) . fst
 
 
 -- | Extract the slot number from the chain point.
 toSlotNo :: ChainPoint -- ^ The chain point.
          -> SlotNo     -- ^ The slot number.
-toSlotNo point =
-  -- FIXME: Find a less fragile way to extract the slot number at a chain point.
-  case show point of
-    "ChainPointAtGenesis" -> SlotNo 0
-    text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
+toSlotNo ChainPointAtGenesis = SlotNo 0
+toSlotNo (ChainPoint slot _) = slot
 
 
 -- | Allow minting.
-makeActive :: Chain era () -- ^ Action to modify the chain state.
+makeActive :: Chain () -- ^ Action to modify the chain state.
 makeActive =
   do
     ChainState{..} <- get
@@ -92,8 +83,8 @@ makeActive =
 
 
 -- | Record a new block.
-recordBlock :: SlotNo       -- ^ The slot number.
-            -> Chain era () -- ^ Action to modify the chain state.
+recordBlock :: SlotNo   -- ^ The slot number.
+            -> Chain () -- ^ Action to modify the chain state.
 recordBlock slot =
   do
     ChainState{..} <- get
@@ -110,9 +101,8 @@ recordBlock slot =
 
 
 -- | Roll back the chain state.
-recordRollback :: IsCardanoEra era
-               => SlotNo       -- ^ The slot number to roll back to.
-               -> Chain era () -- ^ The action to modify the chain state.
+recordRollback :: SlotNo   -- ^ The slot number to roll back to.
+               -> Chain () -- ^ The action to modify the chain state.
 recordRollback slot =
   do
     ChainState{..} <- get
@@ -124,7 +114,8 @@ recordRollback slot =
         putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
     printRollback (origins, origins') (pendings, pendings')
     modify
-      $ (currentLens  .~ slot                                                  )
+      $ (activeLens   .~ False                                                 )
+      . (currentLens  .~ slot                                                  )
       . (originsLens  .~ origins'                                              )
       . (pendingsLens .~ pendings'                                             )
       . (historyLens  .~ history'                                              )
@@ -133,9 +124,9 @@ recordRollback slot =
 
 
 -- | Record the input to a transaction.
-recordInput :: SlotNo       -- ^ The slot number.
-            -> TxIn         -- ^ The spent UTxO.
-            -> Chain era () -- ^ The action to modify the chain state.
+recordInput :: SlotNo   -- ^ The slot number.
+            -> TxIn     -- ^ The spent UTxO.
+            -> Chain () -- ^ The action to modify the chain state.
 recordInput slot txIn =
   do
     ChainState{..} <- get
@@ -163,13 +154,11 @@ recordInput slot txIn =
 
 
 -- | Record the output of a transaction.
-recordOutput :: IsCardanoEra era
-             => IsShelleyBasedEra era
-             => [TxIn]           -- ^ The spend UTxOs.
-             -> TxIn             -- ^ The UTxO.
-             -> AddressInEra era -- ^ The destination address.
-             -> Value            -- ^ The total value.
-             -> Chain era ()     -- ^ The action to modify the chain state.
+recordOutput :: [TxIn]     -- ^ The spend UTxOs.
+             -> TxIn       -- ^ The UTxO.
+             -> AddressAny -- ^ The destination address.
+             -> Value      -- ^ The total value.
+             -> Chain ()   -- ^ The action to modify the chain state.
 recordOutput inputs output destination value =
   do
     ChainState{..} <- get
@@ -194,12 +183,12 @@ recordOutput inputs output destination value =
         sequence_
           [
             do
-              putStrLn $ "  Source: " ++ show (showAddressInEra source')
-              putStrLn $ "    Stake: " ++ show (stakeReferenceInEra source')
+              putStrLn $ "  Source: " ++ show (showAddress source')
+              putStrLn $ "    Stake: " ++ show (stakeReference source')
           |
             source' <- sources
           ]
-        putStrLn $ "  Destination: " ++ showAddressInEra destination
+        putStrLn $ "  Destination: " ++ showAddress destination
         putStrLn $ "  To me: " ++ show (destination == scriptAddress)
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
@@ -213,8 +202,7 @@ recordOutput inputs output destination value =
 
 
 -- | Mint a token from a single transaction.
-createPendingSingle :: IsShelleyBasedEra era
-                    => Chain era () -- ^ The action to modify the chain state.
+createPendingSingle :: Chain () -- ^ The action to modify the chain state.
 createPendingSingle =
   do
     ChainState{..} <- get
@@ -228,9 +216,7 @@ createPendingSingle =
 
 
 -- | Mint a token from multiple transactions.
-createPendingMultiple :: IsCardanoEra era
-                      => IsShelleyBasedEra era
-                      => Chain era ()-- ^ The action to modify the chain state.
+createPendingMultiple :: Chain ()-- ^ The action to modify the chain state.
 createPendingMultiple =
   do
     ChainState{..} <- get
@@ -245,7 +231,7 @@ createPendingMultiple =
               putStrLn $ "  Stake: " ++ stake
               sequence_
                 [
-                  putStrLn $ "  Source: " ++ show (showAddressInEra source)
+                  putStrLn $ "  Source: " ++ show (showAddress source)
                 |
                   source <- sources
                 ]
@@ -267,7 +253,7 @@ createPendingMultiple =
                          (
                            \(output, (sources, value)) ->
                              (
-                               show . stakeReferenceInEra $ head sources
+                               show . stakeReference $ head sources
                              , (
                                  [output]
                                , sources
@@ -283,11 +269,9 @@ createPendingMultiple =
 
 
 -- | Mint or burn a token.
-createToken :: IsCardanoEra era
-            => IsShelleyBasedEra era
-            => [TxIn]                    -- ^ The UTxOs to spend.
-            -> (AddressInEra era, Value) -- ^ The destination and total value.
-            -> Chain era ()              -- ^ The action to modify the chain state.
+createToken :: [TxIn]              -- ^ The UTxOs to spend.
+            -> (AddressAny, Value) -- ^ The destination and total value.
+            -> Chain ()            -- ^ The action to modify the chain state.
 createToken inputs (destination, value) =
   do
     ChainState{..} <- get
@@ -301,7 +285,7 @@ createToken inputs (destination, value) =
           |
             input <- inputs
           ]
-        putStrLn $ "  Destination: " ++ showAddressInEra destination
+        putStrLn $ "  Destination: " ++ showAddress destination
         putStrLn $ "  To me: "++ show (destination == scriptAddress)
         printValueIO "  " value
     sequence_
@@ -338,10 +322,9 @@ createToken inputs (destination, value) =
 
 
 -- | Print diagnostic information for a rollback.
-printRollback :: IsCardanoEra era
-              => (Origins  era, Origins  era) -- ^ The prior and posterior tracking of transaction origins.
-              -> (Pendings era, Pendings era) -- ^ The prior and posterior queues for minting.
-              -> Chain era ()                 -- ^ The action to modify the chain state.
+printRollback :: (Origins , Origins ) -- ^ The prior and posterior tracking of transaction origins.
+              -> (Pendings, Pendings) -- ^ The prior and posterior queues for minting.
+              -> Chain ()             -- ^ The action to modify the chain state.
 printRollback (origins, origins') (pendings, pendings') =
   do
     unless (origins == origins')
@@ -363,10 +346,9 @@ printRollback (origins, origins') (pendings, pendings') =
 
 
 -- | Print diagnostic information for transaction origins.
-printOrigins :: IsCardanoEra era
-             => String      -- ^ The prefatory message.
-             -> Origins era -- ^ The transaction origins.
-             -> IO ()       -- ^ The action to print the information.
+printOrigins :: String  -- ^ The prefatory message.
+             -> Origins -- ^ The transaction origins.
+             -> IO ()   -- ^ The action to print the information.
 printOrigins message origins' =
   do
     putStrLn $ "    " ++ message
@@ -374,17 +356,16 @@ printOrigins message origins' =
       [
         do
           putStrLn $ "      " ++ show output
-          putStrLn $ "        Source: " ++ show (showAddressInEra source)
+          putStrLn $ "        Source: " ++ show (showAddress source)
       |
         (output, source) <- M.toList origins'
       ]
 
 
 -- | Print diagnostic information for queued mintings.
-printPendings :: IsCardanoEra era
-              => String       -- ^ The prefatory message.
-              -> Pendings era -- ^ The queued mintings.
-              -> IO ()        -- ^ The action to print the information.
+printPendings :: String   -- ^ The prefatory message.
+              -> Pendings -- ^ The queued mintings.
+              -> IO ()    -- ^ The action to print the information.
 printPendings message pendings' =
   do
     putStrLn $ "    " ++ message
@@ -394,7 +375,7 @@ printPendings message pendings' =
           putStrLn $ "      " ++ show output
           sequence_
             [
-              putStrLn $ "        Source: " ++ show (showAddressInEra source)
+              putStrLn $ "        Source: " ++ show (showAddress source)
             |
               source <- sources
             ]
@@ -405,11 +386,9 @@ printPendings message pendings' =
 
 
 -- | Run the chain operations for tracking and minting.
-runChain :: IsCardanoEra era
-         => IsShelleyBasedEra era
-         => MonadFail m
+runChain :: MonadFail m
          => MonadIO m
-         => Context era  -- ^ The service context.
+         => Context      -- ^ The service context.
          -> MantisM m () -- ^ Action to run the operations.
 runChain context@Context{..} =
   do
@@ -447,18 +426,6 @@ runChain context@Context{..} =
       inHandler (BlockHeader slot _ _) txIn =
         withChainState chainState
           $ recordInput slot txIn
-      outHandler _ inputs output (TxOut destination txOutValue) =
-        let
-          value =
-            case txOutValue of
-              TxOutValue   _ value'   -> value'
-              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
-          hasToken = selectAsset value token > 0
-          hasImage = not . null $ findPigs scriptHash value
-        in
-          when (hasToken || hasImage || destination == keyAddress)
-            . withChainState chainState
-            $ recordOutput inputs output destination value
     watchTransactions
       socket
       protocol
@@ -467,4 +434,23 @@ runChain context@Context{..} =
       idleHandler
       blockHandler
       inHandler
-      outHandler
+      $ \_ inputs output (TxOut destination txOutValue _) ->
+        let
+          destination' = toAddressAny' destination
+          value =
+            case txOutValue of
+              TxOutValue   _ value'   -> value'
+              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
+          hasToken = selectAsset value token > 0
+          hasImage = not . null $ findPigs scriptHash value
+        in
+          when (hasToken || hasImage || destination' == keyAddress)
+            . withChainState chainState
+            $ recordOutput inputs output destination' value
+
+
+-- | Convert address in an era to any address.
+toAddressAny' :: AddressInEra era -- ^ The address in an era.
+              -> AddressAny       -- ^ Any address.
+toAddressAny' (AddressInEra ByronAddressInAnyEra    address) = toAddressAny address
+toAddressAny' (AddressInEra (ShelleyAddressInEra _) address) = toAddressAny address

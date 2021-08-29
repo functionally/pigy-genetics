@@ -19,7 +19,6 @@ module Main (
 ) where
 
 
-import Cardano.Api        (ShelleyBasedEra(..))
 import Mantis.Types       (runMantisToIO)
 import Pigy.Chain         (runChain)
 import Pigy.Types         (makeContext, readConfiguration)
@@ -37,7 +36,7 @@ main =
       runMantisToIO
         $ do
             configuration <- readConfiguration filename
-            context <- makeContext ShelleyBasedEraAlonzo configuration
+            context <- makeContext configuration
             runChain context
     case result of
       Right () -> return ()
