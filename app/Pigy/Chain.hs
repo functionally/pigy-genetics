@@ -22,7 +22,11 @@ module Pigy.Chain (
 ) where
 
 
+<<<<<<< HEAD
 import Cardano.Api                (AddressInEra, AssetId, BlockHeader(..), ChainPoint, IsCardanoEra, IsShelleyBasedEra, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, selectAsset)
+=======
+import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
+>>>>>>> b141755fccae69033c1196b2f58cf4d044d48cb0
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -37,23 +41,22 @@ import Mantis.Transaction         (printValueIO)
 import Mantis.Wallet              (showAddressInEra, stakeReferenceInEra)
 import Pigy.Chain.Mint            (checkValue, mint)
 import Pigy.Chain.Types           (Chain, ChainState(..), History, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
+import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
+import Pigy.Chain.Mint            (checkValue, findPigs, mint)
+import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
-import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, toList)
+import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, size, toList)
 import qualified Data.Set        as S (delete, member, union)
 
 
--- | The Ouroboros security parameter.
-kSecurity :: Int
-kSecurity = 2160
-
-
 -- | Record history.
-record :: SlotNo                      -- ^ The curent slot number.
-       -> (Origins era, Pendings era) -- ^ The tracked transactions and queued mintings.
-       -> History era                 -- ^ The original history.
-       -> History era                 -- ^ The augmented history.
-record slot sourcePending = take kSecurity . ((slot, sourcePending) :)
+record :: Int                 -- ^ The number of rollbacks to allow.
+       -> SlotNo              -- ^ The curent slot number.
+       -> (Origins, Pendings) -- ^ The tracked transactions and queued mintings.
+       -> History             -- ^ The original history.
+       -> History             -- ^ The augmented history.
+record rollbacks slot sourcePending = take rollbacks . ((slot, sourcePending) :)
 
 
 -- | Roll back history.
@@ -99,9 +102,11 @@ recordBlock slot =
       $ do
         putStrLn ""
         putStrLn $ "New block: " ++ show current ++ " -> " ++ show slot
+        putStrLn $ "  Origins:  " ++ show (M.size origins )
+        putStrLn $ "  Pendings: " ++ show (M.size pendings)
     modify
       $ (currentLens .~ slot)
-      . (historyLens %~ record current (origins, pendings))
+      . (historyLens %~ record (kSecurity context) current (origins, pendings))
 
 
 -- | Roll back the chain state.
@@ -198,7 +203,7 @@ recordOutput inputs output destination value =
         putStrLn $ "  To me: " ++ show (destination == scriptAddress)
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
-    when (destination == scriptAddress && not (null sources))
+    when (destination == scriptAddress)
       $ if active && valid && operation context == Aggressive
           then createToken [output] (head sources, value)
           else do
@@ -442,13 +447,18 @@ runChain context@Context{..} =
       inHandler (BlockHeader slot _ _) txIn =
         withChainState chainState
           $ recordInput slot txIn
-      outHandler _ inputs output (TxOut destination txOutValue _) =
-        case txOutValue of
-          TxOutValue _ value ->
-            when (selectAsset value token > 0 || destination == keyAddress)
-              . withChainState chainState
-              $ recordOutput inputs output destination value
-          _ -> return ()
+      outHandler _ inputs output (TxOut destination txOutValue) =
+        let
+          value =
+            case txOutValue of
+              TxOutValue   _ value'   -> value'
+              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
+          hasToken = selectAsset value token > 0
+          hasImage = not . null $ findPigs scriptHash value
+        in
+          when (hasToken || hasImage || destination == keyAddress)
+            . withChainState chainState
+            $ recordOutput inputs output destination value
     watchTransactions
       socket
       protocol

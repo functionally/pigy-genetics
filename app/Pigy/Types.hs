@@ -52,6 +52,7 @@ data Configuration =
     socketPath  :: FilePath     -- ^ The path for the Cardano node's socket.
   , magic       :: Maybe Word32 -- ^ The magic number for the Cardano network, unless using mainnet.
   , epochSlots  :: Word64       -- ^ The number of slots per epoch.
+  , rollbacks   :: Int          -- ^ The number of rollbacks to allow.
   , policyId    :: String       -- ^ The policy ID of the payment token.
   , assetName   :: String       -- ^ The asset name of the payment token.
   , keyInfo     :: KeyInfo      -- ^ The service's key.
@@ -90,6 +91,7 @@ data Context era =
   , protocol     :: ConsensusModeParams CardanoMode -- ^ The Cardano consensus mode.
   , network      :: NetworkId                       -- ^ The Cardano network.
   , pparams      :: ProtocolParameters              -- ^ The Cardano protocol.
+  , kSecurity    :: Int                             -- ^ The number of rollbacks to allow.
   , token        :: AssetId                         -- ^ The asset ID for the payment token.
   , keyedAddress :: KeyedAddress era                -- ^ The service address.
   , gRandom      :: IOGenM StdGen                   -- ^ The random-number generator.
@@ -142,6 +144,7 @@ makeContext sbe Configuration{..} =
       socket = socketPath
       protocol = CardanoModeParams $ EpochSlots epochSlots
       network = maybe Mainnet (Testnet . NetworkMagic) magic
+      kSecurity = rollbacks
       token = AssetId policyId' assetName'
       ipfsPin = ipfsScript
       images = imageFolder

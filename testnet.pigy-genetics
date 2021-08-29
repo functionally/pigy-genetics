@@ -1,7 +1,8 @@
 Configuration {
   socketPath  = "testnet.socket"
 , magic       = Just 1097911063
-, epochSlots  = 21600
+, epochSlots  = 43200
+, rollbacks   = 2160
 , policyId    = "8bb3b343d8e404472337966a722150048c768d0a92a9813596c5338d"
 , assetName   = "tPIGY"
 , keyInfo     = KeyInfo

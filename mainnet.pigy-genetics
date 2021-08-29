@@ -1,7 +1,8 @@
 Configuration {
   socketPath  = "mainnet.socket"
 , magic       = Nothing
-, epochSlots  = 21600
+, epochSlots  = 43200
+, rollbacks   = 2160
 , policyId    = "2aa9c1557fcf8e7caa049fa0911a8724a1cdaf8037fe0b431c6ac664"
 , assetName   = "PIGYToken"
 , keyInfo     = KeyInfo
