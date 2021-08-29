@@ -116,7 +116,8 @@ recordRollback slot =
         putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
     printRollback (origins, origins') (pendings, pendings')
     modify
-      $ (currentLens  .~ slot                                                  )
+      $ (activeLens   .~ False                                                 )
+      . (currentLens  .~ slot                                                  )
       . (originsLens  .~ origins'                                              )
       . (pendingsLens .~ pendings'                                             )
       . (historyLens  .~ history'                                              )
