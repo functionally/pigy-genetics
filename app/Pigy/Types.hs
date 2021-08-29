@@ -148,7 +148,7 @@ makeContext Configuration{..} =
       images = imageFolder
       operation = mode
       verbose = not quiet
-    pparams <- queryProtocol ShelleyBasedEraMary socketPath protocol network
+    pparams <- queryProtocol ShelleyBasedEraAlonzo socketPath protocol network
     return Context{..}
 
 

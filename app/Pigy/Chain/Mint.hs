@@ -162,7 +162,7 @@ mint Context{..} txIns destination value message =
                  )
     let
       value' = value <> minting
-      Right supportedMultiAsset = multiAssetSupportedInEra MaryEra
+      Right supportedMultiAsset = multiAssetSupportedInEra AlonzoEra
       destination' = anyAddressInShelleyBasedEra destination
     txBody <- includeFee network pparams 1 1 1 0
       $ makeTransaction
@@ -176,7 +176,7 @@ mint Context{..} txIns destination value message =
       witness = makeShelleyKeyWitness txRaw
         $ either WitnessPaymentKey WitnessPaymentExtendedKey signing
       txSigned = makeSignedTransaction [witness] txRaw
-    result <- submitTransaction ShelleyBasedEraMary socket protocol network txSigned
+    result <- submitTransaction ShelleyBasedEraAlonzo socket protocol network txSigned
     case result of
       SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
       SubmitFail reason -> do
