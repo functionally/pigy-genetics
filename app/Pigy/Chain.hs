@@ -13,7 +13,8 @@
 -----------------------------------------------------------------------------
 
 
-{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE RecordWildCards #-}
 
 
 module Pigy.Chain (
@@ -22,7 +23,7 @@ module Pigy.Chain (
 ) where
 
 
-import Cardano.Api                (BlockHeader(..), ChainPoint, SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset)
+import Cardano.Api                (AddressAny, AddressInEra(..), AddressTypeInEra(..), BlockHeader(..), ChainPoint(..), SlotNo(..), StakeAddressReference(NoStakeAddress), TxIn(..), TxOut(..), TxOutValue(..), Value, lovelaceToValue, selectAsset, toAddressAny)
 import Control.Lens               ((.~), (%~))
 import Control.Monad              (unless, when)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -34,9 +35,9 @@ import Mantis.Chain               (watchTransactions)
 import Mantis.Script              (mintingScript)
 import Mantis.Types               (MantisM, runMantisToIO)
 import Mantis.Transaction         (printValueIO)
-import Mantis.Wallet              (showAddressMary, stakeReferenceMary)
+import Mantis.Wallet              (showAddress, stakeReference)
 import Pigy.Chain.Mint            (checkValue, findPigs, mint)
-import Pigy.Chain.Types           (Chain, ChainState(..), History, MaryAddress, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
+import Pigy.Chain.Types           (Chain, ChainState(..), History, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
 
 import qualified Data.Map.Strict as M (delete, difference, fromListWith, insert, keysSet, lookup, member, size, toList)
@@ -62,11 +63,8 @@ rollback slot = dropWhile $ (/= slot) . fst
 -- | Extract the slot number from the chain point.
 toSlotNo :: ChainPoint -- ^ The chain point.
          -> SlotNo     -- ^ The slot number.
-toSlotNo point =
-  -- FIXME: Find a less fragile way to extract the slot number at a chain point.
-  case show point of
-    "ChainPointAtGenesis" -> SlotNo 0
-    text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
+toSlotNo ChainPointAtGenesis = SlotNo 0
+toSlotNo (ChainPoint slot _) = slot
 
 
 -- | Allow minting.
@@ -116,7 +114,8 @@ recordRollback slot =
         putStrLn $ "Rollback: " ++ show slot ++ " <- " ++ show current
     printRollback (origins, origins') (pendings, pendings')
     modify
-      $ (currentLens  .~ slot                                                  )
+      $ (activeLens   .~ False                                                 )
+      . (currentLens  .~ slot                                                  )
       . (originsLens  .~ origins'                                              )
       . (pendingsLens .~ pendings'                                             )
       . (historyLens  .~ history'                                              )
@@ -155,11 +154,11 @@ recordInput slot txIn =
 
 
 -- | Record the output of a transaction.
-recordOutput :: [TxIn]      -- ^ The spend UTxOs.
-             -> TxIn        -- ^ The UTxO.
-             -> MaryAddress -- ^ The destination address.
-             -> Value       -- ^ The total value.
-             -> Chain ()    -- ^ The action to modify the chain state.
+recordOutput :: [TxIn]     -- ^ The spend UTxOs.
+             -> TxIn       -- ^ The UTxO.
+             -> AddressAny -- ^ The destination address.
+             -> Value      -- ^ The total value.
+             -> Chain ()   -- ^ The action to modify the chain state.
 recordOutput inputs output destination value =
   do
     ChainState{..} <- get
@@ -184,12 +183,12 @@ recordOutput inputs output destination value =
         sequence_
           [
             do
-              putStrLn $ "  Source: " ++ show (showAddressMary source')
-              putStrLn $ "    Stake: " ++ show (stakeReferenceMary source')
+              putStrLn $ "  Source: " ++ show (showAddress source')
+              putStrLn $ "    Stake: " ++ show (stakeReference source')
           |
             source' <- sources
           ]
-        putStrLn $ "  Destination: " ++ showAddressMary destination
+        putStrLn $ "  Destination: " ++ showAddress destination
         putStrLn $ "  To me: " ++ show (destination == scriptAddress)
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
@@ -232,7 +231,7 @@ createPendingMultiple =
               putStrLn $ "  Stake: " ++ stake
               sequence_
                 [
-                  putStrLn $ "  Source: " ++ show (showAddressMary source)
+                  putStrLn $ "  Source: " ++ show (showAddress source)
                 |
                   source <- sources
                 ]
@@ -254,7 +253,7 @@ createPendingMultiple =
                          (
                            \(output, (sources, value)) ->
                              (
-                               show . stakeReferenceMary $ head sources
+                               show . stakeReference $ head sources
                              , (
                                  [output]
                                , sources
@@ -270,9 +269,9 @@ createPendingMultiple =
 
 
 -- | Mint or burn a token.
-createToken :: [TxIn]               -- ^ The UTxOs to spend.
-            -> (MaryAddress, Value) -- ^ The destination and total value.
-            -> Chain ()             -- ^ The action to modify the chain state.
+createToken :: [TxIn]              -- ^ The UTxOs to spend.
+            -> (AddressAny, Value) -- ^ The destination and total value.
+            -> Chain ()            -- ^ The action to modify the chain state.
 createToken inputs (destination, value) =
   do
     ChainState{..} <- get
@@ -286,7 +285,7 @@ createToken inputs (destination, value) =
           |
             input <- inputs
           ]
-        putStrLn $ "  Destination: " ++ showAddressMary destination
+        putStrLn $ "  Destination: " ++ showAddress destination
         putStrLn $ "  To me: "++ show (destination == scriptAddress)
         printValueIO "  " value
     sequence_
@@ -357,7 +356,7 @@ printOrigins message origins' =
       [
         do
           putStrLn $ "      " ++ show output
-          putStrLn $ "        Source: " ++ show (showAddressMary source)
+          putStrLn $ "        Source: " ++ show (showAddress source)
       |
         (output, source) <- M.toList origins'
       ]
@@ -376,7 +375,7 @@ printPendings message pendings' =
           putStrLn $ "      " ++ show output
           sequence_
             [
-              putStrLn $ "        Source: " ++ show (showAddressMary source)
+              putStrLn $ "        Source: " ++ show (showAddress source)
             |
               source <- sources
             ]
@@ -427,18 +426,6 @@ runChain context@Context{..} =
       inHandler (BlockHeader slot _ _) txIn =
         withChainState chainState
           $ recordInput slot txIn
-      outHandler _ inputs output (TxOut destination txOutValue) =
-        let
-          value =
-            case txOutValue of
-              TxOutValue   _ value'   -> value'
-              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
-          hasToken = selectAsset value token > 0
-          hasImage = not . null $ findPigs scriptHash value
-        in
-          when (hasToken || hasImage || destination == keyAddress)
-            . withChainState chainState
-            $ recordOutput inputs output destination value
     watchTransactions
       socket
       protocol
@@ -447,4 +434,23 @@ runChain context@Context{..} =
       idleHandler
       blockHandler
       inHandler
-      outHandler
+      $ \_ inputs output (TxOut destination txOutValue _) ->
+        let
+          destination' = toAddressAny' destination
+          value =
+            case txOutValue of
+              TxOutValue   _ value'   -> value'
+              TxOutAdaOnly _ lovelace -> lovelaceToValue lovelace
+          hasToken = selectAsset value token > 0
+          hasImage = not . null $ findPigs scriptHash value
+        in
+          when (hasToken || hasImage || destination' == keyAddress)
+            . withChainState chainState
+            $ recordOutput inputs output destination' value
+
+
+-- | Convert address in an era to any address.
+toAddressAny' :: AddressInEra era -- ^ The address in an era.
+              -> AddressAny       -- ^ Any address.
+toAddressAny' (AddressInEra ByronAddressInAnyEra    address) = toAddressAny address
+toAddressAny' (AddressInEra (ShelleyAddressInEra _) address) = toAddressAny address

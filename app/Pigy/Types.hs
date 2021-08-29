@@ -32,13 +32,13 @@ module Pigy.Types (
 ) where
 
 
-import Cardano.Api            (AddressInEra(..), AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, MaryEra, NetworkId(..), NetworkMagic(..), PaymentKey, PaymentExtendedKey, SigningKey, anyAddressInShelleyBasedEra, deserialiseFromRawBytes, deserialiseFromRawBytesHex)
+import Cardano.Api            (AddressAny, AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, NetworkId(..), NetworkMagic(..), PaymentKey, ShelleyBasedEra(..), deserialiseFromRawBytes, deserialiseFromRawBytesHex)
 import Cardano.Api.Shelley    (ProtocolParameters)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Word              (Word32, Word64)
 import Mantis.Query           (queryProtocol)
 import Mantis.Types           (MantisM, foistMantisMaybe)
-import Mantis.Wallet          (SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
+import Mantis.Wallet          (SomePaymentSigningKey, SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
 import System.Random          (StdGen, getStdGen)
 import System.Random.Stateful (IOGenM, newIOGenM)
 
@@ -87,7 +87,7 @@ data KeyInfo =
 data Context =
   Context
   {
-    socket       :: FilePath                        -- ^ The path for the Cardano node's socket.  
+    socket       :: FilePath                        -- ^ The path for the Cardano node's socket.
   , protocol     :: ConsensusModeParams CardanoMode -- ^ The Cardano consensus mode.
   , network      :: NetworkId                       -- ^ The Cardano network.
   , pparams      :: ProtocolParameters              -- ^ The Cardano protocol.
@@ -106,10 +106,10 @@ data Context =
 data KeyedAddress =
   KeyedAddress
   {
-    keyAddress       :: AddressInEra MaryEra          -- ^ The address.
-  , verificationHash :: Hash PaymentKey               -- ^ The hash of the verification key.
-  , verification     :: SomePaymentVerificationKey    -- ^ The verification key.
-  , signing          :: SigningKey PaymentExtendedKey -- ^ The signing key.
+    keyAddress       :: AddressAny                 -- ^ The address.
+  , verificationHash :: Hash PaymentKey            -- ^ The hash of the verification key.
+  , verification     :: SomePaymentVerificationKey -- ^ The verification key.
+  , signing          :: SomePaymentSigningKey      -- ^ The signing key.
   }
     deriving (Show)
 
@@ -148,7 +148,7 @@ makeContext Configuration{..} =
       images = imageFolder
       operation = mode
       verbose = not quiet
-    pparams <- queryProtocol socketPath protocol network
+    pparams <- queryProtocol ShelleyBasedEraMary socketPath protocol network
     return Context{..}
 
 
@@ -158,7 +158,7 @@ readKeyedAddress :: MonadIO m
                  -> MantisM m KeyedAddress -- ^ The key and its hashes.
 readKeyedAddress KeyInfo{..} =
   do
-    keyAddress <- anyAddressInShelleyBasedEra <$> readAddress addressString
+    keyAddress <- readAddress addressString
     verification <- readVerificationKey verificationKeyFile
     signing <- readSigningKey signingKeyFile
     let

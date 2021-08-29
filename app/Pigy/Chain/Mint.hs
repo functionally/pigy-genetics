@@ -29,16 +29,15 @@ module Pigy.Chain.Mint (
 ) where
 
 
-import Cardano.Api                                       (AssetId(..), AssetName(..), PolicyId(..), Quantity(..), ScriptHash, ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutValue(..), Value, filterValue, getTxId, makeScriptWitness, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
+import Cardano.Api                                       (AddressAny, AssetId(..), AssetName(..), CardanoEra(..), PolicyId(..), Quantity(..), ScriptHash, ShelleyBasedEra(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutDatumHash(..), TxOutValue(..), Value, anyAddressInShelleyBasedEra, filterValue, getTxId, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, multiAssetSupportedInEra, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
 import Data.Maybe                                        (mapMaybe)
 import Mantis.Query                                      (submitTransaction)
 import Mantis.Script                                     (mintingScript)
-import Mantis.Transaction                                (includeFee, makeTransaction, supportedMultiAsset)
+import Mantis.Transaction                                (includeFee, makeTransaction)
 import Mantis.Types                                      (MantisM, foistMantisEither, printMantis)
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
-import Pigy.Chain.Types                                  (MaryAddress)
 import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
 import Pigy.Ipfs                                         (pinImage)
 import Pigy.Types                                        (Context(..), KeyedAddress(..))
@@ -87,7 +86,7 @@ mint :: MonadFail m
      => MonadIO m
      => Context      -- ^ The service context.
      -> [TxIn]       -- ^ The UTxOs to be spent.
-     -> MaryAddress  -- ^ The destination.
+     -> AddressAny   -- ^ The destination.
      -> Value        -- ^ The value to be spent.
      -> [String]     -- ^ The message to be embedded in the transaction.
      -> MantisM m () -- ^ The action to mint or burn.
@@ -100,7 +99,7 @@ mint Context{..} txIns destination value message =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "  Burnt token: " ++ BS.unpack (head pigs)
+               printMantis $ "  Burnt token: PIG@" ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -163,21 +162,21 @@ mint Context{..} txIns destination value message =
                  )
     let
       value' = value <> minting
+      Right supportedMultiAsset = multiAssetSupportedInEra MaryEra
+      destination' = anyAddressInShelleyBasedEra destination
     txBody <- includeFee network pparams 1 1 1 0
       $ makeTransaction
         txIns
-        [TxOut destination (TxOutValue supportedMultiAsset value')]
+        [TxOut destination' (TxOutValue supportedMultiAsset value') TxOutDatumHashNone]
         Nothing
         metadata
-        Nothing
-        (Just minting)
+        (Just (PolicyId scriptHash, script, minting))
     txRaw <- foistMantisEither $ makeTransactionBody txBody
     let
       witness = makeShelleyKeyWitness txRaw
-        $ WitnessPaymentExtendedKey signing
-      witness' = makeScriptWitness script
-      txSigned = makeSignedTransaction [witness, witness'] txRaw
-    result <- submitTransaction socket protocol network txSigned
+        $ either WitnessPaymentKey WitnessPaymentExtendedKey signing
+      txSigned = makeSignedTransaction [witness] txRaw
+    result <- submitTransaction ShelleyBasedEraMary socket protocol network txSigned
     case result of
       SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
       SubmitFail reason -> do
