@@ -32,7 +32,7 @@ module Pigy.Types (
 ) where
 
 
-import Cardano.Api            (AddressInEra(..), AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, IsShelleyBasedEra(..), NetworkId(..), NetworkMagic(..), PaymentKey, ShelleyBasedEra(..), anyAddressInShelleyBasedEra, deserialiseFromRawBytes, deserialiseFromRawBytesHex)
+import Cardano.Api            (AddressAny, AssetId(..), AsType (AsAssetName, AsPolicyId), CardanoMode, ConsensusModeParams(CardanoModeParams), EpochSlots(..), Hash, NetworkId(..), NetworkMagic(..), PaymentKey, ShelleyBasedEra(..), deserialiseFromRawBytes, deserialiseFromRawBytesHex)
 import Cardano.Api.Shelley    (ProtocolParameters)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Word              (Word32, Word64)
@@ -83,7 +83,7 @@ data KeyInfo =
 
 
 -- | The contetual parameters for the service.
-data Context era =
+data Context =
   Context
   {
     socket       :: FilePath                        -- ^ The path for the Cardano node's socket.
@@ -91,7 +91,7 @@ data Context era =
   , network      :: NetworkId                       -- ^ The Cardano network.
   , pparams      :: ProtocolParameters              -- ^ The Cardano protocol.
   , token        :: AssetId                         -- ^ The asset ID for the payment token.
-  , keyedAddress :: KeyedAddress era                -- ^ The service address.
+  , keyedAddress :: KeyedAddress                    -- ^ The service address.
   , gRandom      :: IOGenM StdGen                   -- ^ The random-number generator.
   , ipfsPin      :: FilePath                        -- ^ The path to the IPFS script for pinning images.
   , images       :: FilePath                        -- ^ The path to the folder for images.
@@ -101,10 +101,10 @@ data Context era =
 
 
 -- | A key and it hashes.
-data KeyedAddress era =
+data KeyedAddress =
   KeyedAddress
   {
-    keyAddress       :: AddressInEra era           -- ^ The address.
+    keyAddress       :: AddressAny                 -- ^ The address.
   , verificationHash :: Hash PaymentKey            -- ^ The hash of the verification key.
   , verification     :: SomePaymentVerificationKey -- ^ The verification key.
   , signing          :: SomePaymentSigningKey      -- ^ The signing key.
@@ -120,13 +120,11 @@ readConfiguration = liftIO . fmap read . readFile
 
 
 -- | Convert a configuration into a service context.
-makeContext :: IsShelleyBasedEra era
-            => MonadFail m
+makeContext :: MonadFail m
             => MonadIO m
-            => ShelleyBasedEra era     -- ^ The era.
-            -> Configuration           -- ^ The configuration.
-            -> MantisM m (Context era) -- ^ The action returning the context.
-makeContext sbe Configuration{..} =
+            => Configuration     -- ^ The configuration.
+            -> MantisM m Context -- ^ The action returning the context.
+makeContext Configuration{..} =
   do
     policyId' <-
       foistMantisMaybe "Could not decode policy ID."
@@ -147,18 +145,17 @@ makeContext sbe Configuration{..} =
       images = imageFolder
       operation = mode
       verbose = not quiet
-    pparams <- queryProtocol sbe socketPath protocol network
+    pparams <- queryProtocol ShelleyBasedEraAlonzo socketPath protocol network
     return Context{..}
 
 
 -- | Read a key.
-readKeyedAddress :: IsShelleyBasedEra era
-                 => MonadIO m
-                 => KeyInfo                      -- ^ The key information.
-                 -> MantisM m (KeyedAddress era) -- ^ The key and its hashes.
+readKeyedAddress :: MonadIO m
+                 => KeyInfo                -- ^ The key information.
+                 -> MantisM m KeyedAddress -- ^ The key and its hashes.
 readKeyedAddress KeyInfo{..} =
   do
-    keyAddress <- anyAddressInShelleyBasedEra <$> readAddress addressString
+    keyAddress <- readAddress addressString
     verification <- readVerificationKey verificationKeyFile
     signing <- readSigningKey signingKeyFile
     let

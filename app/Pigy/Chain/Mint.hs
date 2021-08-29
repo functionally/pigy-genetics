@@ -29,7 +29,7 @@ module Pigy.Chain.Mint (
 ) where
 
 
-import Cardano.Api                                       (AddressInEra, AssetId(..), AssetName(..), IsCardanoEra, IsShelleyBasedEra(..), PolicyId(..), Quantity(..), ScriptHash, ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutDatumHash(..), TxOutValue(..), Value, filterValue, getTxId, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, multiAssetSupportedInEra, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, shelleyBasedToCardanoEra, valueFromList, valueToList)
+import Cardano.Api                                       (AddressAny, AssetId(..), AssetName(..), CardanoEra(..), PolicyId(..), Quantity(..), ScriptHash, ShelleyBasedEra(..), ShelleyWitnessSigningKey(..), TxIn(..), TxMetadata(..), TxMetadataValue(..), TxOut(..), TxOutDatumHash(..), TxOutValue(..), Value, anyAddressInShelleyBasedEra, filterValue, getTxId, makeShelleyKeyWitness, makeSignedTransaction, makeTransactionBody, multiAssetSupportedInEra, negateValue, quantityToLovelace, selectAsset, selectLovelace, serialiseToRawBytesHexText, valueFromList, valueToList)
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
 import Data.Maybe                                        (mapMaybe)
@@ -82,16 +82,14 @@ findPigs scriptHash =
 
 
 -- | Mint or burn an image token.
-mint :: IsCardanoEra era
-     => IsShelleyBasedEra era
-     => MonadFail m
+mint :: MonadFail m
      => MonadIO m
-     => Context era      -- ^ The service context.
-     -> [TxIn]           -- ^ The UTxOs to be spent.
-     -> AddressInEra era -- ^ The destination.
-     -> Value            -- ^ The value to be spent.
-     -> [String]         -- ^ The message to be embedded in the transaction.
-     -> MantisM m ()     -- ^ The action to mint or burn.
+     => Context      -- ^ The service context.
+     -> [TxIn]       -- ^ The UTxOs to be spent.
+     -> AddressAny   -- ^ The destination.
+     -> Value        -- ^ The value to be spent.
+     -> [String]     -- ^ The message to be embedded in the transaction.
+     -> MantisM m () -- ^ The action to mint or burn.
 mint Context{..} txIns destination value message =
   do
     let
@@ -164,11 +162,12 @@ mint Context{..} txIns destination value message =
                  )
     let
       value' = value <> minting
-      Right supportedMultiAsset = multiAssetSupportedInEra $ shelleyBasedToCardanoEra shelleyBasedEra
+      Right supportedMultiAsset = multiAssetSupportedInEra AlonzoEra
+      destination' = anyAddressInShelleyBasedEra destination
     txBody <- includeFee network pparams 1 1 1 0
       $ makeTransaction
         txIns
-        [TxOut destination (TxOutValue supportedMultiAsset value') TxOutDatumHashNone]
+        [TxOut destination' (TxOutValue supportedMultiAsset value') TxOutDatumHashNone]
         Nothing
         metadata
         (Just (PolicyId scriptHash, script, minting))
@@ -177,7 +176,7 @@ mint Context{..} txIns destination value message =
       witness = makeShelleyKeyWitness txRaw
         $ either WitnessPaymentKey WitnessPaymentExtendedKey signing
       txSigned = makeSignedTransaction [witness] txRaw
-    result <- submitTransaction shelleyBasedEra socket protocol network txSigned
+    result <- submitTransaction ShelleyBasedEraAlonzo socket protocol network txSigned
     case result of
       SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
       SubmitFail reason -> do
