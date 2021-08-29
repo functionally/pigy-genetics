@@ -67,11 +67,8 @@ rollback slot = dropWhile $ (/= slot) . fst
 -- | Extract the slot number from the chain point.
 toSlotNo :: ChainPoint -- ^ The chain point.
          -> SlotNo     -- ^ The slot number.
-toSlotNo point =
-  -- FIXME: Find a less fragile way to extract the slot number at a chain point.
-  case show point of
-    "ChainPointAtGenesis" -> SlotNo 0
-    text                  -> SlotNo . read . takeWhile (/= ')') $ drop 19 text
+toSlotNo ChainPointAtGenesis = SlotNo 0
+toSlotNo (ChainPoint slot _) = slot
 
 
 -- | Allow minting.
