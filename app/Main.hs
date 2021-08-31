@@ -19,7 +19,7 @@ module Main (
 ) where
 
 
-import Mantis.Types       (runMantisToIO)
+import Mantra.Types       (runMantraToIO)
 import Pigy.Chain         (runChain)
 import Pigy.Types         (makeContext, readConfiguration)
 import System.Environment (getArgs)
@@ -33,7 +33,7 @@ main =
   do
     [filename] <- getArgs
     result <-
-      runMantisToIO
+      runMantraToIO
         $ do
             configuration <- readConfiguration filename
             context <- makeContext configuration

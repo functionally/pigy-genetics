@@ -21,7 +21,7 @@ module Pigy.Ipfs (
 
 import Control.Monad.IO.Class    (MonadIO)
 import Development.Shake.Command (Exit(..), Stderr(..), Stdout(..), cmd)
-import Mantis.Types              (MantisM, foistMantisEitherIO)
+import Mantra.Types              (MantraM, foistMantraEitherIO)
 import Pigy.Image                (Genotype, toChromosome, writeImage)
 import Pigy.Image.Types          (Chromosome, Phenable(..))
 import System.FilePath.Posix     ((</>), (<.>))
@@ -34,9 +34,9 @@ pinImage :: MonadFail m
          => FilePath                       -- ^ The IPFS shell script.
          -> FilePath                       -- ^ The folder for images.
          -> Genotype                       -- ^ The genotype of the image.
-         -> MantisM m (Chromosome, String) -- ^ Action for pinning the image and returning its chromosome and IPFS CID.
+         -> MantraM m (Chromosome, String) -- ^ Action for pinning the image and returning its chromosome and IPFS CID.
 pinImage script folder genotype =
-  foistMantisEitherIO
+  foistMantraEitherIO
     $ do
       let
         chromosome = toChromosome genotype

@@ -33,10 +33,10 @@ import Cardano.Api                                       (AddressAny, AssetId(..
 import Control.Monad.Error.Class                         (throwError)
 import Control.Monad.IO.Class                            (MonadIO, liftIO)
 import Data.Maybe                                        (mapMaybe)
-import Mantis.Query                                      (submitTransaction)
-import Mantis.Script                                     (mintingScript)
-import Mantis.Transaction                                (includeFee, makeTransaction)
-import Mantis.Types                                      (MantisM, foistMantisEither, printMantis)
+import Mantra.Query                                      (submitTransaction)
+import Mantra.Script                                     (mintingScript)
+import Mantra.Transaction                                (includeFee, makeTransaction)
+import Mantra.Types                                      (MantraM, foistMantraEither, printMantra)
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult(..))
 import Pigy.Image                                        (crossover, fromChromosome, newGenotype)
 import Pigy.Ipfs                                         (pinImage)
@@ -89,7 +89,7 @@ mint :: MonadFail m
      -> AddressAny   -- ^ The destination.
      -> Value        -- ^ The value to be spent.
      -> [String]     -- ^ The message to be embedded in the transaction.
-     -> MantisM m () -- ^ The action to mint or burn.
+     -> MantraM m () -- ^ The action to mint or burn.
 mint Context{..} txIns destination value message =
   do
     let
@@ -99,7 +99,7 @@ mint Context{..} txIns destination value message =
     (metadata, minting) <-
       if length pigs == 1
         then do
-               printMantis $ "  Burnt token: PIG@" ++ BS.unpack (head pigs)
+               printMantra $ "  Burnt token: PIG@" ++ BS.unpack (head pigs)
                return
                  (
                    Nothing
@@ -171,14 +171,14 @@ mint Context{..} txIns destination value message =
         Nothing
         metadata
         (Just (PolicyId scriptHash, script, minting))
-    txRaw <- foistMantisEither $ makeTransactionBody txBody
+    txRaw <- foistMantraEither $ makeTransactionBody txBody
     let
       witness = makeShelleyKeyWitness txRaw
         $ either WitnessPaymentKey WitnessPaymentExtendedKey signing
       txSigned = makeSignedTransaction [witness] txRaw
     result <- submitTransaction ShelleyBasedEraAlonzo socket protocol network txSigned
     case result of
-      SubmitSuccess     -> printMantis $ "  Success: " ++ show (getTxId txRaw)
+      SubmitSuccess     -> printMantra $ "  Success: " ++ show (getTxId txRaw)
       SubmitFail reason -> do
-                             printMantis $ "  Tx: " ++ show txRaw
+                             printMantra $ "  Tx: " ++ show txRaw
                              throwError  $ "  Failure: " ++ show reason

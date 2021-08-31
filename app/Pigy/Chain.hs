@@ -31,11 +31,11 @@ import Control.Monad.State.Strict (MonadState(..), modify)
 import Data.Default               (Default(..))
 import Data.IORef                 (newIORef)
 import Data.Maybe                 (mapMaybe)
-import Mantis.Chain               (watchTransactions)
-import Mantis.Script              (mintingScript)
-import Mantis.Types               (MantisM, runMantisToIO)
-import Mantis.Transaction         (printValueIO)
-import Mantis.Wallet              (showAddress, stakeReference)
+import Mantra.Chain               (watchTransactions)
+import Mantra.Script              (mintingScript)
+import Mantra.Types               (MantraM, runMantraToIO)
+import Mantra.Transaction         (printValueIO)
+import Mantra.Wallet              (showAddress, stakeReference)
 import Pigy.Chain.Mint            (checkValue, findPigs, mint)
 import Pigy.Chain.Types           (Chain, ChainState(..), History, Origins, Pendings, activeLens, currentLens, historyLens, originsLens, pendingsLens, redosLens, undosLens, withChainState)
 import Pigy.Types                 (Context(..), KeyedAddress(..), Mode(..))
@@ -317,7 +317,7 @@ createToken inputs (destination, value) =
                         , "Sending more that one PIGY does not mint more pig images."
                         , "Also, please send the tokens and ADA in a single transaction."
                         ]
-        result <- runMantisToIO $ mint context inputs destination value message
+        result <- runMantraToIO $ mint context inputs destination value message
         either print return result
 
 
@@ -389,7 +389,7 @@ printPendings message pendings' =
 runChain :: MonadFail m
          => MonadIO m
          => Context      -- ^ The service context.
-         -> MantisM m () -- ^ Action to run the operations.
+         -> MantraM m () -- ^ Action to run the operations.
 runChain context@Context{..} =
   do
     let
