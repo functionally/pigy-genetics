@@ -1,5 +1,5 @@
 Configuration {
-  socketPath  = "mainnet.socket"
+  socketPath  = "/data/mainnet.socket"
 , magic       = Nothing
 , epochSlots  = 43200
 , rollbacks   = 2160
