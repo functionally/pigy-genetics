@@ -192,7 +192,8 @@ recordOutput inputs output destination value =
         putStrLn $ "  To me: " ++ show (destination == scriptAddress)
         putStrLn $ "  Valid: " ++ show valid
         printValueIO "  " value
-    when (destination == scriptAddress)
+    -- FIXME: Find a better way to handle Byron addresses.
+    when (destination == scriptAddress && not (null sources))
       $ if active && valid && operation context == Aggressive
           then createToken [output] (head sources, value)
           else do
