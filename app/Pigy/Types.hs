@@ -36,9 +36,9 @@ import Cardano.Api            (AddressAny, AssetId(..), AsType (AsAssetName, AsP
 import Cardano.Api.Shelley    (ProtocolParameters)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Word              (Word32, Word64)
-import Mantis.Query           (queryProtocol)
-import Mantis.Types           (MantisM, foistMantisMaybe)
-import Mantis.Wallet          (SomePaymentSigningKey, SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
+import Mantra.Query           (queryProtocol)
+import Mantra.Types           (MantraM, foistMantraMaybe)
+import Mantra.Wallet          (SomePaymentSigningKey, SomePaymentVerificationKey, makeVerificationKeyHash, readAddress, readSigningKey, readVerificationKey)
 import System.Random          (StdGen, getStdGen)
 import System.Random.Stateful (IOGenM, newIOGenM)
 
@@ -117,7 +117,7 @@ data KeyedAddress =
 -- | Read a configuration file.
 readConfiguration :: MonadIO m
                   => FilePath                -- ^ The path to the configuration file.
-                  -> MantisM m Configuration -- ^ The action returning the configuration.
+                  -> MantraM m Configuration -- ^ The action returning the configuration.
 readConfiguration = liftIO . fmap read . readFile
 
 
@@ -125,15 +125,15 @@ readConfiguration = liftIO . fmap read . readFile
 makeContext :: MonadFail m
             => MonadIO m
             => Configuration     -- ^ The configuration.
-            -> MantisM m Context -- ^ The action returning the context.
+            -> MantraM m Context -- ^ The action returning the context.
 makeContext Configuration{..} =
   do
     policyId' <-
-      foistMantisMaybe "Could not decode policy ID."
+      foistMantraMaybe "Could not decode policy ID."
         . deserialiseFromRawBytesHex AsPolicyId
         $ BS.pack policyId
     assetName' <-
-      foistMantisMaybe "Could not decode asset name."
+      foistMantraMaybe "Could not decode asset name."
         . deserialiseFromRawBytes AsAssetName
         $ BS.pack assetName
     keyedAddress <- readKeyedAddress keyInfo
@@ -148,14 +148,14 @@ makeContext Configuration{..} =
       images = imageFolder
       operation = mode
       verbose = not quiet
-    pparams <- queryProtocol ShelleyBasedEraMary socketPath protocol network
+    pparams <- queryProtocol ShelleyBasedEraAlonzo socketPath protocol network
     return Context{..}
 
 
 -- | Read a key.
 readKeyedAddress :: MonadIO m
                  => KeyInfo                -- ^ The key information.
-                 -> MantisM m KeyedAddress -- ^ The key and its hashes.
+                 -> MantraM m KeyedAddress -- ^ The key and its hashes.
 readKeyedAddress KeyInfo{..} =
   do
     keyAddress <- readAddress addressString

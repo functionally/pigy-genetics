@@ -1,5 +1,5 @@
 Configuration {
-  socketPath  = "testnet.socket"
+  socketPath  = "/data/testnet.socket"
 , magic       = Just 1097911063
 , epochSlots  = 43200
 , rollbacks   = 2160

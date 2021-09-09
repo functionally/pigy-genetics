@@ -59,15 +59,15 @@ test-show-details: direct
 
 source-repository-package
   type: git
-  location: https://bitbucket.org/functionally/mantis
-  tag: b24775dec1af7b588b1d1b52a37e17008ab0445d
-  --sha256: 1cz01znvjn3fkbjvgal2ai2a61mglpsvs9f0xpqcxz7ra17l6g95
+  location: https://bitbucket.org/functionally/mantra.git
+  tag: 5276dde4fd8674f57f132e540b6447c351140277
+  --sha256: 13l877w9w41g7bz5afqqm212yblvia3hdc3w7azqdrbdjgwqzzmn
 
 source-repository-package
   type: git
-  location: https://github.com/input-output-hk/cardano-node
-  tag: 4c59442958072657812c6c0bb8e0b4ab85ce1ba2
-  --sha256: 0pc26hrgdsf93h3qvp8m76axm4jspzclg6psn14mbaf1mkc1fxmx
+  location: https://github.com/functionally/cardano-node
+  tag: dd8d0224a1f44dd97d47351645d4b76115734c62
+  --sha256: 1gsi1yq9gb6mbbbacv4fsn84v3lhl110mklj4g2kc1krax3zxyq5
   subdir:
     cardano-api
 
